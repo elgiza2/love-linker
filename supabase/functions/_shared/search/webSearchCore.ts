@@ -228,6 +228,50 @@ async function braveSearch(query: string, count: number, offset = 0): Promise<We
   }
 }
 
+/**
+ * Bing's public RSS view of normal web results. Keyless, works from cloud IPs
+ * (unlike the DuckDuckGo HTML endpoint, which serves an anomaly page there),
+ * and returns ~10 general web results per query in any language.
+ */
+async function bingRssSearch(query: string, count: number, offset = 0): Promise<WebSearchResult[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const url = new URL("https://www.bing.com/search");
+    url.searchParams.set("q", query);
+    url.searchParams.set("format", "rss");
+    url.searchParams.set("count", String(Math.min(Math.max(count, 1), 20)));
+    if (offset > 0) url.searchParams.set("first", String(offset + 1));
+    const resp = await fetch(url.toString(), {
+      headers: { "User-Agent": BROWSER_UA, Accept: "application/rss+xml,text/xml,*/*" },
+      signal: controller.signal,
+    });
+    if (!resp.ok) return [];
+    const xml = await resp.text();
+    const out: WebSearchResult[] = [];
+    const seen = new Set<string>();
+    const itemRe = /<item>([\s\S]*?)<\/item>/g;
+    let m: RegExpExecArray | null;
+    while ((m = itemRe.exec(xml)) && out.length < count) {
+      const block = m[1];
+      const link = decodeHtml(block.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? "");
+      if (!/^https?:\/\//.test(link) || /(^https?:\/\/)?(www\.)?bing\.com/.test(link)) continue;
+      if (seen.has(link)) continue;
+      seen.add(link);
+      out.push({
+        title: decodeHtml(block.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? link).slice(0, 220),
+        url: link,
+        snippet: decodeHtml(block.match(/<description>([\s\S]*?)<\/description>/)?.[1] ?? "").slice(0, 900),
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function googleNewsSearch(
   query: string,
   count: number,
