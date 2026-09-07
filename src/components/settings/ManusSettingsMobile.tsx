@@ -96,7 +96,7 @@ const ManusSettingsMobile = () => {
 
   const mainRows: Row[] = [
     { icon: MailIcon, label: "Mail", trailing: "@megsyai.com", path: "/mail" },
-    { icon: KeyRound, label: "الباسوردات", path: "/settings/passwords" },
+    { icon: KeyRound, label: "Passwords", path: "/settings/passwords" },
     { icon: Lightbulb, label: "Knowledge", path: "/settings/memory" },
     { icon: Bell, label: "Notifications", path: "/notifications" },
     { icon: Database, label: "Data controls", path: "/settings/data" },

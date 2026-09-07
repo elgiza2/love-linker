@@ -88,7 +88,7 @@ export function DesktopSettingsHome() {
       rows: [
         { icon: AppearanceIcon, label: tx("Composer"), path: "/settings/customization" },
         { icon: (p) => <Mail {...p} />, label: tx("Mail"), path: "/mail" },
-        { icon: (p) => <KeyRound {...p} />, label: "الباسوردات", path: "/settings/passwords" },
+        { icon: (p) => <KeyRound {...p} />, label: tx("Passwords"), path: "/settings/passwords" },
         { icon: (p) => <Brain {...p} />, label: tx("Memory"), path: "/settings/memory" },
         { icon: IntegrationsIcon, label: tx("Integrations"), path: "/chat?integrations=1" },
         { icon: IntegrationsIcon, label: tx("MCP Servers"), path: "/settings/mcp" },
