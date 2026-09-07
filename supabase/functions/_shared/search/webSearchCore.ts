@@ -105,15 +105,23 @@ const BROWSER_UA =
 /**
  * Official search APIs, used before any HTML-scraping fallback because cloud
  * IPs are frequently blocked by the scraped endpoints. Each one activates only
- * when its function secret is present.
+ * when its function secret is present. Locale is inferred from the query so
+ * Arabic questions get Arabic Google/Brave results instead of irrelevant
+ * US-English hits.
  */
+const QUERY_LOCALE = (query: string): { gl: string; hl: string } =>
+  /[\u0600-\u06FF]/.test(query) ? { gl: "sa", hl: "ar" } : { gl: "us", hl: "en" };
+
 async function apiSearch(query: string, count: number): Promise<WebSearchResult[]> {
   const brave = Deno.env.get("BRAVE_API_KEY")?.trim();
+  const locale = QUERY_LOCALE(query);
   if (brave) {
     try {
       const url = new URL("https://api.search.brave.com/res/v1/web/search");
       url.searchParams.set("q", query);
       url.searchParams.set("count", String(Math.min(Math.max(count, 1), 20)));
+      url.searchParams.set("search_lang", locale.hl);
+      url.searchParams.set("country", locale.gl.toUpperCase());
       const resp = await fetch(url, {
         headers: { Accept: "application/json", "X-Subscription-Token": brave },
       });
@@ -156,11 +164,19 @@ async function apiSearch(query: string, count: number): Promise<WebSearchResult[
   ).trim();
   if (serper) {
     try {
+      const body = JSON.stringify({
+        q: query,
+        num: Math.min(Math.max(count, 1), 20),
+        gl: locale.gl,
+        hl: locale.hl,
+      });
+      console.log(`serper req q=${JSON.stringify(query)} bytes=${new TextEncoder().encode(body).length}`);
       const resp = await fetch("https://google.serper.dev/search", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-API-KEY": serper },
-        body: JSON.stringify({ q: query, num: Math.min(Math.max(count, 1), 20) }),
+        body,
       });
+      console.log(`serper resp ${resp.status}`);
       if (resp.ok) {
         const data = await resp.json();
         const out = (data.organic ?? []).map((r: any) => ({
@@ -400,6 +416,8 @@ async function keylessSearch(query: string, count: number, offset = 0): Promise<
 
 export async function webSearch(query: string, count = 8, offset = 0): Promise<WebSearchResponse> {
   const trimmed = (query || "").trim();
+  console.log(`serperKeyLen=${(Deno.env.get("serper")||Deno.env.get("SERPER")||Deno.env.get("SERPER_API_KEY")||Deno.env.get("SERPER_KEY")||"").trim().length} braveLen=${(Deno.env.get("BRAVE_API_KEY")||"").trim().length} tavilyLen=${(Deno.env.get("TAVILY_API_KEY")||"").trim().length}`);
+  console.log(`webSearch q=${JSON.stringify(trimmed)} codepoints=${[...trimmed].slice(0,8).map((c)=>c.codePointAt(0)?.toString(16)).join(",")}`);
   if (!trimmed) return { results: [], error: "empty query" };
 
   let supabase: ReturnType<typeof serverClient>;
