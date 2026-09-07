@@ -30,23 +30,31 @@ import {
   updateJob,
 } from "../_shared/jobs.ts";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** One deck-writing completion. Providers rate-limit hard, so retry with backoff
+ *  instead of failing the whole job on a single 429. */
 async function completion(db: ReturnType<typeof admin>, system: string, user: string, maxTokens = 2000) {
-  const result = await callModel(db, [MODELS.standard, MODELS.fast], {
-    agentRole: "manager",
-    model: MODELS.standard,
-    stream: false,
-    temperature: 0.7,
-    max_tokens: maxTokens,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-  });
-  if (!result?.response?.ok) throw new Error("model_unavailable");
-  const data = await result.response.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string" || !text.trim()) throw new Error("empty_completion");
-  return text.trim();
+  let lastError = "model_unavailable";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await sleep(1500 * attempt);
+    const result = await callModel(db, [MODELS.standard, MODELS.fast], {
+      agentRole: "manager",
+      stream: false,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    });
+    if (!result?.response?.ok) continue;
+    const data = await result.response.json().catch(() => null);
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text === "string" && text.trim()) return text.trim();
+    lastError = "empty_completion";
+  }
+  throw new Error(lastError);
 }
 
 function extractJson(text: string): any {
@@ -218,7 +226,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!hasModelProvider()) return json({ error: "auth_required", message: "Model provider not configured" }, 503);
+  // Cerebras is the primary provider; abliteration.ai is only the fallback, so
+  // either one being configured is enough to build a deck.
+  if (!hasCerebras() && !hasModelProvider()) {
+    return json({ error: "auth_required", message: "Model provider not configured" }, 503);
+  }
 
   const user = await getCallerUser(db, req);
   if (!user) return json({ error: "auth_required", message: "Please sign in to continue." }, 401);
