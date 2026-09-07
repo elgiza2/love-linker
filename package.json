@@ -15,9 +15,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.14.28",
     "@clerk/clerk-react": "^5.61.3",
-    "@e2b/desktop": "^2.3.2",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@imgly/background-removal": "^1.7.0",
@@ -65,7 +63,6 @@
     "pdfjs-dist": "^6.1.200",
     "pptx-preview": "^1.0.7",
     "pptxgenjs": "^4.0.1",
-    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-helmet-async": "^3.0.0",
