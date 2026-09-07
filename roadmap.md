@@ -60,10 +60,16 @@
 ## OpenManus agent replacement (2026-09-07)
 - [x] DECISION: Kortix/Suna dropped (signups closed, needs VPS). New target: run real OpenManus inside a hosted Novita sandbox.
 - [x] NOVITA_API_KEY saved as a Supabase secret
-- [ ] Constraint: keep the existing AI text provider (abliteration.ai) — do NOT switch model providers
-- [ ] Constraint: everything on the user's own Supabase; nothing on Lovable Cloud
-- [ ] Unified agent_runs/steps/tool_calls/artifacts schema (own Supabase) with RLS + GRANTs
-- [ ] `agent-bridge` edge function: create/reuse Novita sandbox, run OpenManus task, persist steps
-- [ ] Wire UI (useAgentRun) with no design changes; AskHuman + stop + resume
-- [ ] Remove legacy engines: manusLoop, src/lib/agentkernel, _shared/agentkernel, long-run, agent-tick, operator-orchestrator
+- [x] Constraint: keep the existing AI text provider — do NOT switch model providers
+- [x] Constraint: everything on the user's own Supabase; nothing on Lovable Cloud
+- [x] Novita template `megsy-openmanus` (zoqc62arzviqz75ceswp): Python 3.11 + upstream OpenManus + Chromium
+- [x] manus_runs/manus_steps/manus_tool_calls/manus_artifacts schema with RLS + GRANTs
+- [x] `manus-proxy`: per-run OpenAI-compatible endpoint, provider keys stay in Supabase
+- [x] `manus-bridge`: start/poll/answer/stop, ships om_runner.py, persists steps and tool calls
+- [x] Verified end to end: real web-research task, 10 steps, browser use, final answer with source
+- [x] Chat now runs OpenManus instead of the in-tab loop; `src/lib/manusLoop.ts` deleted
+- [ ] Dedicated agent screen: live steps, artifacts, answer-the-agent input, stop button
+- [ ] Remove remaining legacy engines: src/lib/agentkernel, _shared/agentkernel, long-run, agent-tick, operator-orchestrator
+- [ ] Artifact capture: save files the agent produces into manus_artifacts + storage
+
 
