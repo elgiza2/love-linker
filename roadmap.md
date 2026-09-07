@@ -63,3 +63,4 @@
 - [ ] Wire UI (useAgentRun) with no design changes; AskHuman + stop + resume
 - [ ] Remove legacy engines: manusLoop, src/lib/agentkernel, _shared/agentkernel, long-run, agent-tick, operator-orchestrator
 - [ ] Blocker: hosting target for the container (Fly.io/VPS) or E2B key
+- [ ] Deep research: compare ready-to-run open-source agent repos (OpenManus, Suna/Kortix, Agent Zero, Bytebot, Skyvern, Open Interpreter, Browser Use, etc.) and let the user pick one
