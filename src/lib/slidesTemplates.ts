@@ -677,7 +677,7 @@ export function slidesTemplatePalette(id?: string | null): {
   const bg = resolveColor(tpl.colors[0]) || "#0b0b0f";
   const accentRaw = resolveColor(tpl.colors[1]) || "#6366f1";
   const bgLum = bg.startsWith("#") ? relativeLuminance(bg) : 0.15;
-  const light = bgLum > 0.55;
+  const light = bgLum > 0.4;
   const fg = light ? "#141418" : "#f7f7f8";
   // If the accent has almost no contrast against the background it would be
   // invisible — fall back to the readable foreground instead.
