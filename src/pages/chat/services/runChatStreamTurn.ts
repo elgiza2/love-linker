@@ -616,53 +616,45 @@ export async function runChatStreamTurn(opts: RunChatStreamTurnOptions): Promise
   }
 
   /**
-   * Manus-style agent loop. It runs in the tab against the deployed
-   * `chat-alibaba` function (Alibaba / Qwen models), because the Edge Function
-   * deploy channel is unavailable — same behaviour, no deploy needed.
+   * The agent: the real OpenManus repository, running in its own isolated cloud
+   * workspace with a browser, a shell, Python and files. Its answer is handed to
+   * the reply as verified ground truth, so the streamed message is written from
+   * work that actually happened instead of guesses.
    */
   if (!isDeepResearch) {
     try {
-      const { shouldRunManusLoop, manusStepBudget, runManusLoop } = await import("@/lib/manusLoop");
-      if (shouldRunManusLoop(lastUserText, String(chatMode))) {
+      const { shouldRunAgent, agentStepBudget, runAgentTask } = await import("@/lib/agent/openManus");
+      if (shouldRunAgent(lastUserText, String(chatMode))) {
         setIsThinking(true);
         setSearchStatus("Planning");
-        const result = await runManusLoop({
+        const result = await runAgentTask({
           userText: lastUserText,
           context: researchContext,
-          userId: chatUserId,
           conversationId: backgroundCid || conversationId,
-          maxSteps: manusStepBudget(lastUserText),
+          maxSteps: agentStepBudget(lastUserText),
           signal: controller.signal,
-          onTodo: (items) => {
-            setParallelTasks(
-              items.map((item, index) => ({
-                id: `todo-${index}`,
-                name: item.title,
-                status: item.done ? ("done" as const) : ("running" as const),
-              })),
-            );
-          },
           onStep: (label, detail) => {
             setToolActivity({ name: label, status: "running" });
             narrate(`${label}: ${detail.slice(0, 160)}`);
           },
         });
-        if (result) {
-          researchSources = [...researchSources, ...result.sources].slice(0, 40);
+        if (result?.answer) {
+          const evidence = `Work completed by the agent (${result.steps} steps). Use this as the verified result:\n\n${result.answer}`;
           const lastMsg = allMessages[allMessages.length - 1];
           if (typeof lastMsg.content === "string") {
-            lastMsg.content = `${lastMsg.content}\n\n${result.evidence}`;
+            lastMsg.content = `${lastMsg.content}\n\n${evidence}`;
           } else if (Array.isArray(lastMsg.content)) {
-            lastMsg.content.push({ type: "text" as const, text: result.evidence });
+            lastMsg.content.push({ type: "text" as const, text: evidence });
           }
         }
       }
     } catch {
-      // The loop is an enhancement — a failure must never block the reply.
+      // The agent is an enhancement — a failure must never block the reply.
     } finally {
       resetToolUi();
     }
   }
+
 
   await streamChat({
 

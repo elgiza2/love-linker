@@ -22,6 +22,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { guardRequest, guardResponse } from "../_shared/apiAuth.ts";
 import { dataServiceKey, dataUrl } from "../_shared/dataProject.ts";
+import { OM_RUNNER_PY } from "../_shared/omRunner.ts";
 import {
   connectSandbox,
   createSandbox,
@@ -80,6 +81,18 @@ async function loadRun(db: any, runId: string, userId: string): Promise<RunRow |
   return (data as RunRow) ?? null;
 }
 
+/** Only the fields the UI needs — never the run token or sandbox id. */
+function publicRun(run: Record<string, unknown>) {
+  const {
+    id, status, question, final_answer, error, step_count, max_steps, prompt,
+    started_at, finished_at, created_at,
+  } = run as Record<string, unknown>;
+  return {
+    id, status, question, final_answer, error, step_count, max_steps, prompt,
+    started_at, finished_at, created_at,
+  };
+}
+
 async function start(db: any, userId: string, body: Record<string, unknown>) {
   const prompt = String(body.prompt ?? "").trim();
   if (!prompt) return json({ error: "prompt is required" }, 400);
@@ -117,6 +130,7 @@ async function start(db: any, userId: string, body: Record<string, unknown>) {
       OM_MAX_STEPS: String(maxSteps),
       PYTHONUNBUFFERED: "1",
     });
+    await sandbox.files.write(RUNNER, OM_RUNNER_PY);
     await sandbox.files.write(`${runDir}/task.txt`, prompt);
     await sandbox.commands.run(
       `cd /app/openmanus && nohup python ${RUNNER} > ${runDir}/runner.log 2>&1 &`,
@@ -192,9 +206,9 @@ function stepText(event: Event): string | null {
 }
 
 async function poll(db: any, userId: string, run: RunRow) {
-  if (!run.sandbox_id || !run.run_dir) return json({ run, events: [] });
+  if (!run.sandbox_id || !run.run_dir) return json({ run: publicRun(run as unknown as Record<string, unknown>), events: [] });
   if (["completed", "failed", "stopped"].includes(run.status)) {
-    return json({ run, events: [] });
+    return json({ run: publicRun(run as unknown as Record<string, unknown>), events: [] });
   }
 
   let raw = "";
@@ -319,7 +333,7 @@ async function poll(db: any, userId: string, run: RunRow) {
 
   if (finished && run.sandbox_id) await killSandbox(run.sandbox_id);
 
-  return json({ run: updated ?? run, events });
+  return json({ run: publicRun((updated ?? run) as unknown as Record<string, unknown>), events });
 }
 
 async function answer(db: any, run: RunRow, text: string) {
