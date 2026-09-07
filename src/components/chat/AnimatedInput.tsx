@@ -101,7 +101,7 @@ const AnimatedInput = ({
   canSendWithoutText,
 }: AnimatedInputProps) => {
   const currentLang = useUserLang();
-  const { open: computerOpen } = useComposerComputer();
+  useComposerComputer();
   const deferredValue = useDeferredValue(value);
   const navigate = useNavigate();
   const isArabicUi =
