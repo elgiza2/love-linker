@@ -177,7 +177,6 @@ async function apiSearch(query: string, count: number): Promise<WebSearchResult[
         body,
       });
       console.log(`serper resp ${resp.status}`);
-      });
       if (resp.ok) {
         const data = await resp.json();
         const out = (data.organic ?? []).map((r: any) => ({
