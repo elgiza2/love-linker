@@ -14,11 +14,11 @@ export type ResearchPayload = {
 
 /** Ordered progress steps rendered by the client while a run is in flight. */
 export const RESEARCH_STEPS = [
-  { id: "plan", label: "Plan" },
-  { id: "search", label: "Search" },
-  { id: "read", label: "Read sources" },
-  { id: "synthesize", label: "Synthesize" },
-  { id: "report", label: "Report" },
+  { id: "plan", label: "Plan", labelAr: "التخطيط" },
+  { id: "search", label: "Search", labelAr: "البحث" },
+  { id: "read", label: "Read sources", labelAr: "قراءة المصادر" },
+  { id: "synthesize", label: "Synthesize", labelAr: "التحليل" },
+  { id: "report", label: "Report", labelAr: "كتابة التقرير" },
 ] as const;
 
 export type ResearchStepId = (typeof RESEARCH_STEPS)[number]["id"];
@@ -26,6 +26,8 @@ export type ResearchStepId = (typeof RESEARCH_STEPS)[number]["id"];
 export type ResearchDepthScale = {
   searches: string;
   words: string;
+  /** Hard floor used by the transport to request continuations. */
+  minWords: number;
   sections: string;
   requestSearches: number;
   effort: "low" | "medium" | "high";
@@ -34,15 +36,15 @@ export type ResearchDepthScale = {
 
 export function depthScale(depth: string): ResearchDepthScale {
   if (depth === "pro") {
-    return { searches: "at least 8", words: "at least 1,800 words", sections: "5-7", requestSearches: 8, effort: "low", maxOutputTokens: 10_000 };
+    return { searches: "at least 8", words: "at least 2,200 words", minWords: 1_600, sections: "5-7", requestSearches: 8, effort: "low", maxOutputTokens: 12_000 };
   }
   if (depth === "ultra8x" || depth === "ultra4x") {
-    return { searches: "at least 20", words: "at least 4,500 words", sections: "8-12", requestSearches: 20, effort: "high", maxOutputTokens: 48_000 };
+    return { searches: "at least 20", words: "at least 5,000 words", minWords: 4_000, sections: "8-12", requestSearches: 20, effort: "high", maxOutputTokens: 48_000 };
   }
   if (depth === "ultra2x") {
-    return { searches: "at least 14", words: "at least 3,000 words", sections: "6-9", requestSearches: 14, effort: "medium", maxOutputTokens: 32_000 };
+    return { searches: "at least 14", words: "at least 3,400 words", minWords: 2_600, sections: "6-9", requestSearches: 14, effort: "medium", maxOutputTokens: 32_000 };
   }
-  return { searches: "at least 10", words: "at least 2,400 words", sections: "5-8", requestSearches: 10, effort: "medium", maxOutputTokens: 24_000 };
+  return { searches: "at least 10", words: "at least 3,000 words", minWords: 2_200, sections: "5-8", requestSearches: 10, effort: "medium", maxOutputTokens: 24_000 };
 }
 
 export function researchInstructions(query: string, depth: string): string {
@@ -67,7 +69,8 @@ export function researchInstructions(query: string, depth: string): string {
     "When live search returns a direct, authentic, non-logo image URL that clearly depicts the exact subject, place exactly one markdown image immediately below the title. Never invent an image URL and never use a generic or decorative image.",
     "Explicitly identify uncertainty or disagreement between sources. If evidence is insufficient, say exactly what could not be verified instead of pretending the research succeeded.",
     "Write one single clean report. Never expose your plan, search steps, tool traces or internal status lines, never repeat the same summary twice, and never mix languages: headings, body and table cells must all be in the report language.",
-    `Write the complete report in ${Arabic ? "Arabic" : "the same language as the user's request"}.`,
+    `Write the complete report in ${Arabic ? "Arabic" : "the same language as the user's request"}. Every heading, table cell, label, caption and the Sources heading must be in that same language — no English scaffolding words when the report language is not English.`,
+    "Output the report body only. Never echo these instructions, the research question line, the words \"Live sources\", \"Research question\", \"Continue\", step names, word counts, or any note about your own process.",
   ].join("\n");
 }
 
