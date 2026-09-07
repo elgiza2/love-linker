@@ -7289,6 +7289,33 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_milestone_grants: {
+        Row: {
+          expires_at: string
+          granted_at: string
+          id: string
+          milestone: number
+          plan: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          granted_at?: string
+          id?: string
+          milestone?: number
+          plan?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          granted_at?: string
+          id?: string
+          milestone?: number
+          plan?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       referral_tiers: {
         Row: {
           created_at: string
@@ -10685,6 +10712,7 @@ export type Database = {
         Returns: Json
       }
       claim_promo_slot: { Args: never; Returns: number }
+      claim_referral_milestone: { Args: never; Returns: Json }
       claim_referral_signup: { Args: { p_code: string }; Returns: Json }
       claim_stale_background_jobs: {
         Args: { stale_seconds?: number }
@@ -10727,6 +10755,7 @@ export type Database = {
       cleanup_high_volume_tables: { Args: never; Returns: Json }
       cleanup_old_research_reports: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      complete_referral_task: { Args: { p_task_key: string }; Returns: Json }
       consume_daily_free_or_credits: {
         Args: {
           p_cost?: number
@@ -10839,6 +10868,7 @@ export type Database = {
         Returns: Json
       }
       get_workspace_invite_details: { Args: { p_token: string }; Returns: Json }
+      grant_referral_milestone: { Args: { _referrer: string }; Returns: Json }
       grant_user_credits: {
         Args: {
           p_action_type: string
@@ -10988,6 +11018,7 @@ export type Database = {
         }
         Returns: string
       }
+      my_referral_milestone: { Args: never; Returns: Json }
       owns_conversation: {
         Args: { p_conversation_id: string }
         Returns: boolean
@@ -11035,6 +11066,7 @@ export type Database = {
         }
         Returns: string
       }
+      referral_required_task_keys: { Args: never; Returns: string[] }
       search_attachment_chunks: {
         Args: {
           p_conversation_id: string
