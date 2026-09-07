@@ -1,7 +1,5 @@
-/** @doc Edge-function copy of src/lib/search/webSearchCore.ts — server-only web
- *  search core: You.com search with smart key rotation from the Supabase key
- *  pool (provider "y"), keyless Brave/DuckDuckGo/Google News fallback. */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+/** @doc Server-only web search core: You.com search with smart key rotation from the Supabase key pool (provider "y"). */
+import { createClient } from "@supabase/supabase-js";
 
 export interface WebSearchResult {
   title: string;
@@ -15,8 +13,8 @@ export interface WebSearchResponse {
 }
 
 function serverClient() {
-  const url = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) throw new Error("Supabase server credentials are not configured");
   return createClient(url, serviceKey, { auth: { persistSession: false } });
 }
@@ -103,103 +101,17 @@ const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 /**
- * Official search APIs, used before any HTML-scraping fallback because cloud
- * IPs are frequently blocked by the scraped endpoints. Each one activates only
- * when its function secret is present. Locale is inferred from the query so
- * Arabic questions get Arabic Google/Brave results instead of irrelevant
- * US-English hits.
+ * Keyless primary fallback. Bing's RSS feed answers from datacenter IPs but its
+ * results drift off-topic and its paging repeats, so read Brave's result page
+ * first — it returns ~19 on-topic results per page and pages cleanly.
  */
-const QUERY_LOCALE = (query: string): { gl: string; hl: string } =>
-  /[\u0600-\u06FF]/.test(query) ? { gl: "sa", hl: "ar" } : { gl: "us", hl: "en" };
-
-async function apiSearch(query: string, count: number): Promise<WebSearchResult[]> {
-  const brave = Deno.env.get("BRAVE_API_KEY")?.trim();
-  const locale = QUERY_LOCALE(query);
-  if (brave) {
-    try {
-      const url = new URL("https://api.search.brave.com/res/v1/web/search");
-      url.searchParams.set("q", query);
-      url.searchParams.set("count", String(Math.min(Math.max(count, 1), 20)));
-      url.searchParams.set("search_lang", locale.hl);
-      url.searchParams.set("country", locale.gl.toUpperCase());
-      const resp = await fetch(url, {
-        headers: { Accept: "application/json", "X-Subscription-Token": brave },
-      });
-      if (resp.ok) {
-        const out = normalise(await resp.json());
-        if (out.length) return out.slice(0, count);
-      } else {
-        console.error(`brave api HTTP ${resp.status}`);
-      }
-    } catch (error) {
-      console.error("brave api failed", error);
-    }
-  }
-
-  const tavily = Deno.env.get("TAVILY_API_KEY")?.trim();
-  if (tavily) {
-    try {
-      const resp = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavily}` },
-        body: JSON.stringify({ query, max_results: Math.min(Math.max(count, 1), 20) }),
-      });
-      if (resp.ok) {
-        const out = normalise(await resp.json());
-        if (out.length) return out.slice(0, count);
-      } else {
-        console.error(`tavily HTTP ${resp.status}`);
-      }
-    } catch (error) {
-      console.error("tavily failed", error);
-    }
-  }
-
-  const serper = (
-    Deno.env.get("serper") ||
-    Deno.env.get("SERPER") ||
-    Deno.env.get("SERPER_API_KEY") ||
-    Deno.env.get("SERPER_KEY") ||
-    ""
-  ).trim();
-  if (serper) {
-    try {
-      const resp = await fetch("https://google.serper.dev/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-API-KEY": serper },
-        body: JSON.stringify({
-          q: query,
-          num: Math.min(Math.max(count, 1), 20),
-          gl: locale.gl,
-          hl: locale.hl,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const out = (data.organic ?? []).map((r: any) => ({
-          title: String(r.title ?? r.link ?? "").slice(0, 220),
-          url: String(r.link ?? ""),
-          snippet: String(r.snippet ?? "").slice(0, 900),
-        })).filter((r: WebSearchResult) => r.url);
-        if (out.length) return out.slice(0, count);
-      } else {
-        console.error(`serper HTTP ${resp.status}`);
-      }
-    } catch (error) {
-      console.error("serper failed", error);
-    }
-  }
-
-  return [];
-}
-
-
 async function braveSearch(query: string, count: number, offset = 0): Promise<WebSearchResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   try {
     const url = new URL("https://search.brave.com/search");
     url.searchParams.set("q", query);
+    // Brave pages by result-page index (~20 results each), not item offset.
     const page = Math.floor(Math.max(offset, 0) / 20);
     if (page > 0) url.searchParams.set("offset", String(page));
     const resp = await fetch(url.toString(), {
@@ -224,6 +136,9 @@ async function braveSearch(query: string, count: number, offset = 0): Promise<We
       const title = decodeHtml(
         block.match(/class="title[^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? link,
       ).slice(0, 220);
+      // Brave renames these classes often. Try every layout it has shipped and
+      // fall back to the first meaningful text node, so results never arrive
+      // as bare links — a snippet-less result is useless to the model.
       const snippet = decodeHtml(
         block.match(/class="content[ "][^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1] ??
           block.match(/class="snippet-description[^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1] ??
@@ -242,49 +157,10 @@ async function braveSearch(query: string, count: number, offset = 0): Promise<We
 }
 
 /**
- * Bing's public RSS view of normal web results. Keyless, works from cloud IPs
- * (unlike the DuckDuckGo HTML endpoint, which serves an anomaly page there),
- * and returns ~10 general web results per query in any language.
+ * Google News RSS: always reachable (no key, no throttling) and always on
+ * topic, which makes it the dependable half of the keyless path. It returns a
+ * long single list, so paging is a slice of that list.
  */
-async function bingRssSearch(query: string, count: number, offset = 0): Promise<WebSearchResult[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20_000);
-  try {
-    const url = new URL("https://www.bing.com/search");
-    url.searchParams.set("q", query);
-    url.searchParams.set("format", "rss");
-    url.searchParams.set("count", String(Math.min(Math.max(count, 1), 20)));
-    if (offset > 0) url.searchParams.set("first", String(offset + 1));
-    const resp = await fetch(url.toString(), {
-      headers: { "User-Agent": BROWSER_UA, Accept: "application/rss+xml,text/xml,*/*" },
-      signal: controller.signal,
-    });
-    if (!resp.ok) return [];
-    const xml = await resp.text();
-    const out: WebSearchResult[] = [];
-    const seen = new Set<string>();
-    const itemRe = /<item>([\s\S]*?)<\/item>/g;
-    let m: RegExpExecArray | null;
-    while ((m = itemRe.exec(xml)) && out.length < count) {
-      const block = m[1];
-      const link = decodeHtml(block.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? "");
-      if (!/^https?:\/\//.test(link) || /(^https?:\/\/)?(www\.)?bing\.com/.test(link)) continue;
-      if (seen.has(link)) continue;
-      seen.add(link);
-      out.push({
-        title: decodeHtml(block.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? link).slice(0, 220),
-        url: link,
-        snippet: decodeHtml(block.match(/<description>([\s\S]*?)<\/description>/)?.[1] ?? "").slice(0, 900),
-      });
-    }
-    return out;
-  } catch {
-    return [];
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 async function googleNewsSearch(
   query: string,
   count: number,
@@ -334,6 +210,11 @@ async function googleNewsSearch(
   }
 }
 
+/**
+ * Third keyless source. DuckDuckGo's HTML endpoint needs no key, answers from
+ * datacenter IPs, and stays on topic — it covers the gap when Brave throttles
+ * (429) and the query is not newsworthy enough for Google News.
+ */
 async function duckSearch(query: string, count: number, offset = 0): Promise<WebSearchResult[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
@@ -356,6 +237,7 @@ async function duckSearch(query: string, count: number, offset = 0): Promise<Web
     let m: RegExpExecArray | null;
     while ((m = re.exec(html)) && out.length < count) {
       let link = decodeHtml(m[1].replace(/&amp;/g, "&"));
+      // DuckDuckGo wraps hits in /l/?uddg=<encoded target>.
       const wrapped = link.match(/[?&]uddg=([^&]+)/)?.[1];
       if (wrapped) link = decodeURIComponent(wrapped);
       if (!/^https?:\/\//.test(link) || seen.has(link)) continue;
@@ -374,6 +256,13 @@ async function duckSearch(query: string, count: number, offset = 0): Promise<Web
   }
 }
 
+/**
+ * Keyless path. Brave gives the best general web results but throttles bursts
+ * hard (429), so its calls go through one spaced-out queue; Google News fills
+ * the rest. The old Bing RSS backup was dropped on purpose — it answered with
+ * cached, unrelated pages, and junk sources damage a report more than missing
+ * ones.
+ */
 let braveQueue: Promise<unknown> = Promise.resolve();
 let lastBraveAt = 0;
 
@@ -390,18 +279,16 @@ async function bravePaced(query: string, count: number, offset: number): Promise
 }
 
 async function keylessSearch(query: string, count: number, offset = 0): Promise<WebSearchResponse> {
-  const viaApi = await apiSearch(query, count);
-  if (viaApi.length) return { results: viaApi };
-  const [bing, brave, duck, news] = await Promise.all([
-    bingRssSearch(query, count, offset),
+  // Three independent sources in parallel: if any one is throttled or blocked
+  // the search still returns evidence instead of an empty list.
+  const [brave, duck, news] = await Promise.all([
     bravePaced(query, count, offset),
     duckSearch(query, count, offset),
     googleNewsSearch(query, count, offset),
   ]);
-
   const seen = new Set<string>();
   const merged: WebSearchResult[] = [];
-  for (const item of [...bing, ...brave, ...duck, ...news.results]) {
+  for (const item of [...brave, ...duck, ...news.results]) {
     if (seen.has(item.url) || merged.length >= count) continue;
     seen.add(item.url);
     merged.push(item);
@@ -411,6 +298,10 @@ async function keylessSearch(query: string, count: number, offset = 0): Promise<
     : { results: [], error: news.error ?? "every search source returned nothing" };
 }
 
+/**
+ * Runs a web search, rotating through the pooled keys. A key that errors is
+ * reported (3 strikes → blocked) and the next key is tried automatically.
+ */
 export async function webSearch(query: string, count = 8, offset = 0): Promise<WebSearchResponse> {
   const trimmed = (query || "").trim();
   if (!trimmed) return { results: [], error: "empty query" };
@@ -419,6 +310,9 @@ export async function webSearch(query: string, count = 8, offset = 0): Promise<W
   try {
     supabase = serverClient();
   } catch {
+    // No server credentials (local/preview runtime): Deep Research still needs
+    // live sources, so fall back to the keyless provider instead of returning
+    // an empty list, which makes the model answer without any evidence.
     return keylessSearch(trimmed, count, offset);
   }
   let lastError = "no keys configured";
