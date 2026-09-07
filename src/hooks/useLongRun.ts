@@ -19,7 +19,7 @@ let edgeAvailable = true;
 async function call(action: string, body: Record<string, unknown> = {}) {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  if (!token) throw new Error("سجّل الدخول أولاً لتشغيل مهام الكمبيوتر");
+  if (!token) throw new Error("Sign in first to run computer tasks");
   const { data, error } = await supabase.functions.invoke<{
     run?: LongRun;
     question?: AgentQuestion | null;

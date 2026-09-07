@@ -49,7 +49,7 @@ export async function runComputerTurn({
   // first one for the composer, which looked like the computer "restarting".
   const { getActiveComputerRun } = await import("@/lib/computer/activeRun");
   if (getActiveComputerRun()) {
-    toast.error("في مهمة شغالة على الكمبيوتر دلوقتي. استنى تخلص أو أوقفها الأول.");
+    toast.error("A computer task is already running. Wait for it to finish or stop it first.");
     return;
   }
 

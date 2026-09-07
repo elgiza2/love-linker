@@ -116,7 +116,7 @@ export default function ManusKeysPage() {
       setUnlocked(true);
       void refresh(pwInput);
     } catch {
-      toast.error("كلمة المرور غير صحيحة");
+      toast.error("Incorrect password");
     } finally {
       setChecking(false);
     }
@@ -130,7 +130,7 @@ export default function ManusKeysPage() {
       await callAdmin(password, { action: "add", api_key: newKey.trim(), label: newLabel.trim() });
       setNewKey("");
       setNewLabel("");
-      toast.success("تمت إضافة المفتاح");
+      toast.success("Key added");
       void refresh(password);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "فشل الحفظ");
@@ -152,7 +152,7 @@ export default function ManusKeysPage() {
   const onDelete = async (row: ManusKeyRow) => {
     try {
       await callAdmin(password, { action: "delete", id: row.id });
-      toast.success("تم حذف المفتاح");
+      toast.success("Key deleted");
       void refresh(password);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "فشل الحذف");

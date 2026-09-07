@@ -1378,7 +1378,7 @@ const ChatPage = () => {
       setIsLoading(false);
       setIsThinking(false);
       console.error("[send] unhandled error", err);
-      toast.error("حصلت مشكلة أثناء الإرسال. جرّب تاني.");
+      toast.error("Something went wrong while sending. Please try again.");
     } finally {
       // Safety net: some routed branches return early without touching the
       // loading flags. If nothing is actually streaming any more, the composer

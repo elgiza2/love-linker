@@ -325,7 +325,7 @@ export async function startRun(
 ): Promise<RunRow | null> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
-  if (!userId) throw new Error("سجّل الدخول أولاً لتشغيل المهام");
+  if (!userId) throw new Error("Sign in first to run tasks");
 
   const { data: inserted, error } = await supabase
     .from("long_runs")

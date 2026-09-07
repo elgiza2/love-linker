@@ -1,4 +1,5 @@
 /**
+ * @doc Full MEGSY chat endpoint: streaming chat, tools, research and media routing.
  * Full MEGSY chat endpoint.
  *
  * This local implementation replaces the previously external-only function

@@ -117,7 +117,7 @@ export default function DesktopBridgePage() {
       setNewName("");
       setSelected(created.id);
       await refresh();
-      toast.success("اتعمل كود ربط — شغّل برنامج الجسر وادخل الكود");
+      toast.success("Pairing code created — open the bridge app and enter the code");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "فشل إنشاء الجهاز");
     } finally {

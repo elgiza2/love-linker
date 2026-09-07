@@ -19,7 +19,6 @@ interface Props {
 }
 
 export default function AssistantMediaBlock({ msg, setMessages, setInput, setIsLoading, setIsThinking }: Props) {
-  if (!msg.mediaPlan) return null;
   const targetKey = msg.id ?? msg.clientId;
   const matches = useCallback(
     (mm: Message) =>
@@ -135,11 +134,14 @@ export default function AssistantMediaBlock({ msg, setMessages, setInput, setIsL
   // Auto-start generation immediately without any confirmation/plan step.
   useEffect(() => {
     if (autoStartRef.current) return;
+    if (!msg.mediaPlan) return;
     const status = msg.mediaStatus ?? "awaiting";
     if (status !== "awaiting") return;
     autoStartRef.current = true;
     void startGeneration();
-  }, [msg.mediaStatus, startGeneration]);
+  }, [msg.mediaPlan, msg.mediaStatus, startGeneration]);
+
+  if (!msg.mediaPlan) return null;
 
   return (
     <div className="px-3 md:px-12 space-y-2">
