@@ -416,6 +416,7 @@ async function keylessSearch(query: string, count: number, offset = 0): Promise<
 
 export async function webSearch(query: string, count = 8, offset = 0): Promise<WebSearchResponse> {
   const trimmed = (query || "").trim();
+  console.log(`webSearch q=${JSON.stringify(trimmed)} codepoints=${[...trimmed].slice(0,8).map((c)=>c.codePointAt(0)?.toString(16)).join(",")}`);
   if (!trimmed) return { results: [], error: "empty query" };
 
   let supabase: ReturnType<typeof serverClient>;
