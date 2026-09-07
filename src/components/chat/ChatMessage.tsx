@@ -1459,20 +1459,22 @@ const ChatMessage = ({
   const showNarration =
     role === "assistant" && isDeepResearch && narrations && narrations.length > 0;
   const isResearchActive = !!isStreaming || (!!isThinking && !content);
-  const activeThinkingSteps = useMemo(() => {
+  // Plain computation (not a hook): this code sits after an early return for
+  // the group-chat branch, so hooks here would break hook ordering.
+  const activeThinkingSteps = (() => {
     if (!toolActivity || toolActivity.status !== "running") return undefined;
     const name = String(toolActivity.name || "").replace(/_/g, " ").trim();
     const target = String(toolActivity.target || "").trim();
     const line = [name, target].filter(Boolean).join(" · ");
     return line ? [line] : undefined;
-  }, [toolActivity]);
+  })();
   // The icon of the tool that is running right now replaces the waiting star.
-  const activeToolName = useMemo(() => {
+  const activeToolName = (() => {
     const running = toolParts?.find((part) => part.state === "running");
     if (running) return running.appSlug || running.name;
     if (toolActivity?.status === "running" && toolActivity.name) return toolActivity.name;
     return null;
-  }, [toolParts, toolActivity]);
+  })();
   // Stay in the "thinking" state for the whole turn — including while the
   // model is picking / invoking a tool (reasoning tokens already streaming).
   const showLiveThinkingTrace =

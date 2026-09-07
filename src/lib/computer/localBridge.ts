@@ -74,7 +74,7 @@ function pairCode(): string {
 export async function createDevice(name: string): Promise<LocalDevice> {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
-  if (!userId) throw new Error("سجّل الدخول أولاً لربط جهازك.");
+  if (!userId) throw new Error("Sign in first to pair your device.");
 
   const { data, error } = await supabase
     .from("local_devices")
@@ -140,7 +140,7 @@ export async function queueCommand(input: {
 }): Promise<LocalCommand> {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
-  if (!userId) throw new Error("سجّل الدخول أولاً.");
+  if (!userId) throw new Error("Sign in first.");
 
   const { data, error } = await supabase
     .from("local_device_commands")
@@ -183,7 +183,7 @@ export async function waitForCommand(commandId: string, timeoutMs = 180_000): Pr
     if (row && ["done", "failed", "denied"].includes(row.status)) return row;
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
-  throw new Error("انتهت المدة قبل أن يرد الجهاز. تأكد إن برنامج الجسر شغال.");
+  throw new Error("The device did not respond in time. Make sure the bridge app is running.");
 }
 
 /** Convenience wrapper: queue + wait, for a single agent tool round-trip. */

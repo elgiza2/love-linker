@@ -30,7 +30,7 @@ async function uploadAttachedImages(dataUrls: string[]): Promise<string[]> {
     }
     const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(d);
     if (!match) continue;
-    if (!uid) throw new Error("سجّل الدخول أولًا حتى أقدر أرفع الصورة وأعدل عليها.");
+    if (!uid) throw new Error("Sign in first so the image can be uploaded and edited.");
     try {
       const mime = match[1];
       const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
@@ -43,7 +43,7 @@ async function uploadAttachedImages(dataUrls: string[]): Promise<string[]> {
     }
   }
   if (dataUrls.length > 0 && urls.length === 0) {
-    throw new Error("فشل رفع الصورة المرفقة، لذلك لم أبدأ توليد صورة جديدة بدونها.");
+    throw new Error("The attached image could not be uploaded, so generation was not started without it.");
   }
   return urls;
 }

@@ -68,7 +68,7 @@ export async function loginIdentityFor(
 ): Promise<{ email: string; password: string; site: string; reused: boolean }> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
-  if (!userId) throw new Error("سجّل الدخول أولاً");
+  if (!userId) throw new Error("Sign in first");
 
   const key = siteKey(site);
   const { data: existing } = await supabase
@@ -115,7 +115,7 @@ export async function saveCredential(input: {
 }): Promise<void> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
-  if (!userId) throw new Error("سجّل الدخول أولاً");
+  if (!userId) throw new Error("Sign in first");
   const row = {
     user_id: userId,
     site: siteKey(input.site),

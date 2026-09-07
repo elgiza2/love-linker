@@ -59,8 +59,8 @@ describe("SlideRender variant modifiers", () => {
   });
 
   it("renders cover card with open button", () => {
-    const { getByText } = render(<SlidesDeckCard deck={makeDeck({})} />);
-    expect(getByText("Open in preview")).toBeTruthy();
+    const { container } = render(<SlidesDeckCard deck={makeDeck({})} />);
+    expect(container.querySelector("[data-slides-preview-button]")).toBeTruthy();
   });
 
   it("supports RTL decks (Arabic language)", () => {
