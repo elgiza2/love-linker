@@ -4565,6 +4565,50 @@ export type Database = {
         }
         Relationships: []
       }
+      manus_artifacts: {
+        Row: {
+          created_at: string
+          id: string
+          mime_type: string | null
+          name: string | null
+          path: string
+          run_id: string
+          size_bytes: number | null
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime_type?: string | null
+          name?: string | null
+          path: string
+          run_id: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime_type?: string | null
+          name?: string | null
+          path?: string
+          run_id?: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manus_artifacts_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "manus_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manus_keys: {
         Row: {
           api_key: string
@@ -4603,6 +4647,169 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      manus_runs: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          cursor_seq: number
+          error: string | null
+          final_answer: string | null
+          finished_at: string | null
+          id: string
+          last_polled_at: string | null
+          max_steps: number
+          prompt: string
+          question: string | null
+          run_dir: string | null
+          run_token: string
+          sandbox_id: string | null
+          started_at: string | null
+          status: string
+          step_count: number
+          template_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          cursor_seq?: number
+          error?: string | null
+          final_answer?: string | null
+          finished_at?: string | null
+          id?: string
+          last_polled_at?: string | null
+          max_steps?: number
+          prompt: string
+          question?: string | null
+          run_dir?: string | null
+          run_token?: string
+          sandbox_id?: string | null
+          started_at?: string | null
+          status?: string
+          step_count?: number
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          cursor_seq?: number
+          error?: string | null
+          final_answer?: string | null
+          finished_at?: string | null
+          id?: string
+          last_polled_at?: string | null
+          max_steps?: number
+          prompt?: string
+          question?: string | null
+          run_dir?: string | null
+          run_token?: string
+          sandbox_id?: string | null
+          started_at?: string | null
+          status?: string
+          step_count?: number
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      manus_steps: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          payload: Json
+          run_id: string
+          seq: number
+          step: number | null
+          text: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json
+          run_id: string
+          seq: number
+          step?: number | null
+          text?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          run_id?: string
+          seq?: number
+          step?: number | null
+          text?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manus_steps_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "manus_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manus_tool_calls: {
+        Row: {
+          arguments: Json | null
+          call_id: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          name: string
+          result: string | null
+          run_id: string
+          status: string
+          step: number | null
+          user_id: string
+        }
+        Insert: {
+          arguments?: Json | null
+          call_id?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          name: string
+          result?: string | null
+          run_id: string
+          status?: string
+          step?: number | null
+          user_id: string
+        }
+        Update: {
+          arguments?: Json | null
+          call_id?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          name?: string
+          result?: string | null
+          run_id?: string
+          status?: string
+          step?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manus_tool_calls_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "manus_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       marketing_accounts: {
         Row: {
