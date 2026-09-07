@@ -543,8 +543,8 @@ const AppSidebar = ({
       <div className={`shrink-0 ${isCollapsed ? "px-2 pt-3 flex justify-center" : "px-3 pt-3"}`}>
         <button
           onClick={handleNewChat}
-          title={isBuildMode ? "مشروع جديد" : "محادثة جديدة"}
-          aria-label={isBuildMode ? "مشروع جديد" : "محادثة جديدة"}
+          title={isBuildMode ? "New project" : "New chat"}
+          aria-label={isBuildMode ? "New project" : "New chat"}
           className={
             isCollapsed
               ? "w-10 h-10 grid place-items-center rounded-xl transition-colors hover:bg-[var(--overlay-white-08)]"
@@ -557,7 +557,7 @@ const AppSidebar = ({
           </span>
           {!isCollapsed && (
             <span className="text-[13px] tracking-tight flex-1 text-left" style={{ fontWeight: 600 }}>
-              {isBuildMode ? "مشروع جديد" : "محادثة جديدة"}
+              {isBuildMode ? "New project" : "New chat"}
             </span>
           )}
         </button>
@@ -1064,11 +1064,11 @@ const AppSidebar = ({
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                   style={{ color: TEXT, backgroundColor: "transparent", border: "none", fontWeight: 700 }}
                   className="w-full h-11 px-2 flex items-center gap-3 rounded-none transition-all active:scale-95"
-                  aria-label={isBuildMode ? "مشروع جديد" : "محادثة جديدة"}
+                  aria-label={isBuildMode ? "New project" : "New chat"}
                 >
                   <Plus size={19} strokeWidth={2.2} />
                   <span className="text-[14.5px]">
-                    {isBuildMode ? "مشروع جديد" : "محادثة جديدة"}
+                    {isBuildMode ? "New project" : "New chat"}
                   </span>
                 </motion.button>
                 {moreNav.map(({ label, Icon, path, match }, i) => {
