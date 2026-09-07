@@ -1370,6 +1370,7 @@ const ChatPage = () => {
 
 
   const handleSendWithText = async (overrideText?: string) => {
+    const hadText = String(overrideText ?? input).trim().length > 0;
     try {
       await handleSendWithTextInner(overrideText);
     } catch (err) {
@@ -1384,6 +1385,12 @@ const ChatPage = () => {
       // loading flags. If nothing is actually streaming any more, the composer
       // must not stay stuck on "stop".
       isSubmittingRef.current = false;
+      // The service chip is a one-shot selection: once the message it was
+      // picked for has been sent, clear it so the composer returns to normal.
+      if (hadText && chatUserId) {
+        setSelectedAgent(null);
+        if (chatMode !== "normal" && chatMode !== "learning") handleModeChange("normal" as any);
+      }
       setTimeout(() => {
         if (!abortControllerRef.current && !getActiveComputerRun()) {
           setIsLoading(false);
@@ -1392,6 +1399,7 @@ const ChatPage = () => {
       }, 400);
     }
   };
+
 
   const handleSendWithTextInner = async (overrideText?: string) => {
     const text = overrideText || input;

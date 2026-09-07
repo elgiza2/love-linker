@@ -56,10 +56,15 @@ async function planQueries(query: string, wanted: number): Promise<string[]> {
     if (start === -1 || end === -1) return fallback;
     const parsed = JSON.parse(text.slice(start, end + 1));
     const queries = Array.isArray(parsed)
-      ? parsed.map((q) => String(q).trim()).filter((q) => q.length > 2)
+      ? parsed
+          .map((q) => String(q).trim())
+          // Guard against degenerate one-word queries ("من", "the") that send
+          // the search stack after dictionary pages instead of the topic.
+          .filter((q) => q.length >= 8 && q.split(/\s+/).filter(Boolean).length >= 2)
       : [];
     const unique = Array.from(new Set([query, ...queries])).slice(0, wanted);
     return unique.length ? unique : fallback;
+
   } catch {
     return fallback;
   }
@@ -161,8 +166,31 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
           { role: "user", content: userContent },
         ];
 
+        // Models sometimes leak planning self-talk before the report ("We need
+        // to search…") and invent their own Sources list. Both are filtered
+        // here, on the raw stream, so the client only ever sees clean report
+        // prose; the real source list is appended by us at the very end.
+        const SOURCES_HEADING =
+          /\n#{1,4}\s*(sources|references|المصادر|المراجع|قائمة المصادر)\s*:?\s*\n/i;
+
+        /** Strips pre-report self-talk and any model-written Sources section. */
+        const cleanPart = (raw: string, isFirst: boolean): string => {
+          let out = raw;
+          if (isFirst) {
+            // Everything before the first markdown heading is planning
+            // self-talk ("We need to search…"): hold it back entirely until
+            // the real report starts.
+            const heading = out.match(/(^|\n)#{1,4} /);
+            if (!heading) return "";
+            out = out.slice(heading.index === 0 ? 0 : (heading.index ?? 0) + 1);
+          }
+          const cut = out.match(SOURCES_HEADING);
+          if (cut && cut.index !== undefined) out = out.slice(0, cut.index);
+          return out;
+        };
+
         /** Streams one completion to the client and returns the text it wrote. */
-        const streamOnce = async (): Promise<string> => {
+        const streamOnce = async (isFirst: boolean): Promise<string> => {
           const result = await callModel(null, [], {
             agentRole: "research",
             stream: true,
@@ -174,6 +202,17 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
           const reader = result.response.body.getReader();
           let buffer = "";
           let text = "";
+          let emitted = 0;
+          // Emit only the part of the cleaned text that is safe to show, always
+          // holding back a small tail so a heading split across chunks can
+          // still be recognised before it reaches the user.
+          const flush = (done: boolean) => {
+            const clean = cleanPart(text, isFirst);
+            const safeEnd = done ? clean.length : Math.max(0, clean.length - 80);
+            if (safeEnd <= emitted) return;
+            send({ type: "response.output_text.delta", delta: clean.slice(emitted, safeEnd) });
+            emitted = safeEnd;
+          };
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -200,17 +239,18 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
               }
               if (typeof delta.content === "string" && delta.content) {
                 text += delta.content;
-                send({ type: "response.output_text.delta", delta: delta.content });
+                flush(false);
               }
               if (choice?.finish_reason === "content_filter") {
                 fail("Deep Research was filtered.");
               }
             }
           }
-          return text;
+          flush(true);
+          return cleanPart(text, isFirst);
         };
 
-        let report = await streamOnce();
+        let report = await streamOnce(true);
         if (!report.trim()) {
           fail("Deep Research failed. Please try again.");
           return;
@@ -227,12 +267,23 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
             content:
               `Continue the same report from exactly where it stopped until it reaches at least ${scale.minWords} words in total. ` +
               "Do not restate the title, standfirst, or anything already written, do not summarize, do not add commentary about continuing, " +
-              "and keep the identical language and heading style. Add new thematic sections with concrete facts, then the Sources section only at the very end.",
+              "and keep the identical language and heading style. Add new thematic sections with concrete facts. " +
+              "Never write a Sources, References or المصادر list — it is appended automatically.",
           });
-          const more = await streamOnce();
+          const more = await streamOnce(false);
           if (!more.trim()) break;
           report += `\n\n${more}`;
         }
+
+        // Real source list, appended once, in the report language.
+        const arabic = /[\u0600-\u06FF]/.test(query);
+        const usedSources = sources.slice(0, 18);
+        const sourcesBlock =
+          `\n\n## ${arabic ? "المصادر" : "Sources"}\n\n` +
+          usedSources.map((s) => `- [${s.title}](${s.url})`).join("\n") +
+          "\n";
+        send({ type: "response.output_text.delta", delta: sourcesBlock });
+
       } catch (error) {
         fail(error instanceof Error ? error.message : "Deep Research failed. Please try again.");
       } finally {

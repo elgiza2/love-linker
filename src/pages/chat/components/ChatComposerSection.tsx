@@ -1,5 +1,5 @@
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence } from "framer-motion";
 import ComposerAttachments from "./ComposerAttachments";
 import { RemoteAiBusyBanner } from "./RemoteAiBusyBanner";
@@ -98,6 +98,13 @@ export function ChatComposerSection(props: ChatComposerSectionProps) {
   // auto-return when the service pill is cleared or the user opens a fresh
   // conversation on desktop.
   const effectiveModesShown = modesShown && !hasActiveService;
+
+  // When the active service clears itself (e.g. automatically after the message
+  // it was picked for was sent), bring the modes bar back.
+  useEffect(() => {
+    if (!hasActiveService) setModesShown(true);
+  }, [hasActiveService]);
+
 
   // Starter chips: only on the empty landing state, and they disappear the
   // moment the user clicks into the input, types anything, or activates a

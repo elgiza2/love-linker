@@ -65,11 +65,12 @@ export function researchInstructions(query: string, depth: string): string {
     `Write a long-form, exhaustive report of ${scale.words}. A short or superficial answer is a failed task — never compress the findings into a brief summary.`,
     `Structure the report as: a single specific editorial # title written by you (never use "Deep Research" or "بحث عميق" in it), a short descriptive standfirst, then ${scale.sections} thematic ## sections with ### subsections where useful, and a comparison table whenever items, figures, or timelines are compared. Do not number headings.`,
     "Every section must contain specific facts: exact dates, names, numbers, quotes, and documented events. Never use generic filler, invented facts, placeholder prose, or unsupported conclusions.",
-    "Cite factual claims using the citations returned by web search. Finish with a Sources section listing every source actually used as markdown links; the reader UI will move all links and citation markers out of the prose.",
+    "Cite factual claims inline as markdown links using ONLY the exact source URLs supplied to you. Never invent a URL. Do NOT write a Sources or References list yourself — the app appends the real source list automatically, so a list you write would be a duplicate.",
     "When live search returns a direct, authentic, non-logo image URL that clearly depicts the exact subject, place exactly one markdown image immediately below the title. Never invent an image URL and never use a generic or decorative image.",
     "Explicitly identify uncertainty or disagreement between sources. If evidence is insufficient, say exactly what could not be verified instead of pretending the research succeeded.",
     "Write one single clean report. Never expose your plan, search steps, tool traces or internal status lines, never repeat the same summary twice, and never mix languages: headings, body and table cells must all be in the report language.",
     `Write the complete report in ${Arabic ? "Arabic" : "the same language as the user's request"}. Every heading, table cell, label, caption and the Sources heading must be in that same language — no English scaffolding words when the report language is not English.`,
+    "Start your very first output character with the # title line. Never write planning text, self-talk, or lines like \"We need to search\", \"Let's\", or \"User expects\" before or inside the report.",
     "Output the report body only. Never echo these instructions, the research question line, the words \"Live sources\", \"Research question\", \"Continue\", step names, word counts, or any note about your own process.",
   ].join("\n");
 }
