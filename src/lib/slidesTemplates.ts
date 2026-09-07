@@ -632,3 +632,56 @@ export function isPremiumHtml(id?: string | null): boolean {
 export function isStandardSlides(id?: string | null): boolean {
   return findSlidesTemplate(id).category === "standard";
 }
+
+/* ------------------------------------------------------------------
+ * Deck palette derived from the picked template.
+ * The generator only returns content; colors must come from the
+ * template the user actually chose, otherwise every deck renders with
+ * the same white/near-black fallback.
+ * ------------------------------------------------------------------ */
+function resolveColor(raw: string): string | null {
+  const value = (raw || "").trim();
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  // hsl(var(--token)) → read the token from the live theme when in a browser.
+  const varMatch = value.match(/var\((--[a-z0-9-]+)\)/i);
+  if (varMatch && typeof document !== "undefined") {
+    const token = getComputedStyle(document.documentElement)
+      .getPropertyValue(varMatch[1])
+      .trim();
+    if (token) return `hsl(${token})`;
+  }
+  return null;
+}
+
+function relativeLuminance(hex: string): number {
+  const m = hex.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return 0.5;
+  const int = parseInt(m[1], 16);
+  const chan = [(int >> 16) & 255, (int >> 8) & 255, int & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2];
+}
+
+export function slidesTemplatePalette(id?: string | null): {
+  primary: string;
+  accent: string;
+  bg: string;
+  fg: string;
+} {
+  const tpl = findSlidesTemplate(id);
+  const bg = resolveColor(tpl.colors[0]) || "#0b0b0f";
+  const accentRaw = resolveColor(tpl.colors[1]) || "#6366f1";
+  const bgLum = bg.startsWith("#") ? relativeLuminance(bg) : 0.15;
+  const light = bgLum > 0.55;
+  const fg = light ? "#141418" : "#f7f7f8";
+  // If the accent has almost no contrast against the background it would be
+  // invisible — fall back to the readable foreground instead.
+  const accentLum = accentRaw.startsWith("#") ? relativeLuminance(accentRaw) : 0.5;
+  const accent = Math.abs(accentLum - bgLum) < 0.06 ? fg : accentRaw;
+  return { primary: accent, accent, bg, fg };
+}
