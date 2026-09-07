@@ -155,55 +155,83 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
           .filter(Boolean)
           .join("\n");
 
-        const result = await callModel(null, [], {
-          agentRole: "research",
-          stream: true,
-          reasoning_effort: scale.effort,
-          max_tokens: scale.maxOutputTokens,
-          messages: [
-            { role: "system", content: researchInstructions(query, depth) },
-            { role: "user", content: userContent },
-          ],
-        });
+        const system = researchInstructions(query, depth);
+        const history: { role: "system" | "user" | "assistant"; content: string }[] = [
+          { role: "system", content: system },
+          { role: "user", content: userContent },
+        ];
 
-        if (!result?.response.ok || !result.response.body) {
+        /** Streams one completion to the client and returns the text it wrote. */
+        const streamOnce = async (): Promise<string> => {
+          const result = await callModel(null, [], {
+            agentRole: "research",
+            stream: true,
+            reasoning_effort: scale.effort,
+            max_tokens: scale.maxOutputTokens,
+            messages: history,
+          });
+          if (!result?.response.ok || !result.response.body) return "";
+          const reader = result.response.body.getReader();
+          let buffer = "";
+          let text = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let newline = buffer.indexOf("\n");
+            while (newline !== -1) {
+              const line = buffer.slice(0, newline).replace(/\r$/, "");
+              buffer = buffer.slice(newline + 1);
+              newline = buffer.indexOf("\n");
+              if (!line.startsWith("data:")) continue;
+              const raw = line.slice(5).trim();
+              if (!raw || raw === "[DONE]") continue;
+              let chunk: Record<string, any>;
+              try {
+                chunk = JSON.parse(raw);
+              } catch {
+                continue;
+              }
+              const choice = chunk.choices?.[0];
+              const delta = choice?.delta ?? {};
+              const reasoning = delta.reasoning_content ?? delta.reasoning;
+              if (typeof reasoning === "string" && reasoning) {
+                send({ type: "response.reasoning_summary_text.delta", delta: reasoning });
+              }
+              if (typeof delta.content === "string" && delta.content) {
+                text += delta.content;
+                send({ type: "response.output_text.delta", delta: delta.content });
+              }
+              if (choice?.finish_reason === "content_filter") {
+                fail("Deep Research was filtered.");
+              }
+            }
+          }
+          return text;
+        };
+
+        let report = await streamOnce();
+        if (!report.trim()) {
           fail("Deep Research failed. Please try again.");
           return;
         }
 
-        const reader = result.response.body.getReader();
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let newline = buffer.indexOf("\n");
-          while (newline !== -1) {
-            const line = buffer.slice(0, newline).replace(/\r$/, "");
-            buffer = buffer.slice(newline + 1);
-            newline = buffer.indexOf("\n");
-            if (!line.startsWith("data:")) continue;
-            const raw = line.slice(5).trim();
-            if (!raw || raw === "[DONE]") continue;
-            let chunk: Record<string, any>;
-            try {
-              chunk = JSON.parse(raw);
-            } catch {
-              continue;
-            }
-            const choice = chunk.choices?.[0];
-            const delta = choice?.delta ?? {};
-            const reasoning = delta.reasoning_content ?? delta.reasoning;
-            if (typeof reasoning === "string" && reasoning) {
-              send({ type: "response.reasoning_summary_text.delta", delta: reasoning });
-            }
-            if (typeof delta.content === "string" && delta.content) {
-              send({ type: "response.output_text.delta", delta: delta.content });
-            }
-            if (choice?.finish_reason === "content_filter") {
-              fail("Deep Research was filtered.");
-            }
-          }
+        // The model routinely stops well short of the requested length. Keep
+        // asking it to continue the SAME report (no repeats, no new preamble)
+        // until it reaches the depth target the user paid for.
+        const words = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+        for (let pass = 0; pass < 3 && words(report) < scale.minWords; pass += 1) {
+          history.push({ role: "assistant", content: report.slice(-8_000) });
+          history.push({
+            role: "user",
+            content:
+              `Continue the same report from exactly where it stopped until it reaches at least ${scale.minWords} words in total. ` +
+              "Do not restate the title, standfirst, or anything already written, do not summarize, do not add commentary about continuing, " +
+              "and keep the identical language and heading style. Add new thematic sections with concrete facts, then the Sources section only at the very end.",
+          });
+          const more = await streamOnce();
+          if (!more.trim()) break;
+          report += `\n\n${more}`;
         }
       } catch (error) {
         fail(error instanceof Error ? error.message : "Deep Research failed. Please try again.");
