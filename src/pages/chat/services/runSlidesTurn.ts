@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { failStaleJob } from "@/lib/jobs/client";
-import { isStandardSlides, findSlidesTemplate } from "@/lib/slidesTemplates";
+import { isStandardSlides, findSlidesTemplate, slidesTemplatePalette } from "@/lib/slidesTemplates";
 import { authorizePremiumSlide, FREE_PREMIUM_SLIDES_PER_DAY } from "@/lib/slidesQuota";
 import type { SlideDeck } from "@/components/chat/SlidesDeckCard";
 import type { Message } from "../chatConstants";
@@ -528,9 +528,14 @@ export async function runSlidesTurn(args: RunSlidesTurnArgs): Promise<void> {
             }
           } else if (finalDeck) {
             const tpl = findSlidesTemplate(finalDeck.templateId || slidesTemplate);
-            const enrichedDeck: SlideDeck & { htmlSlug?: string; variant?: string } = tpl.htmlSlug
-              ? { ...finalDeck, templateId: tpl.id, htmlSlug: tpl.htmlSlug, variant: tpl.variant }
-              : finalDeck;
+            // Colors always come from the chosen template — the generator only
+            // returns content, so its palette guess must never win.
+            const enrichedDeck: SlideDeck & { htmlSlug?: string; variant?: string } = {
+              ...finalDeck,
+              templateId: tpl.id,
+              palette: slidesTemplatePalette(tpl.id),
+              ...(tpl.htmlSlug ? { htmlSlug: tpl.htmlSlug, variant: tpl.variant } : {}),
+            };
             const summaryText = await fetchSlidesNarration({
               mode: "summary",
               topic: slidesTopic,
@@ -630,9 +635,12 @@ export async function runSlidesTurn(args: RunSlidesTurnArgs): Promise<void> {
 
           if (fallbackDeck) {
             const tpl = findSlidesTemplate(fallbackDeck.templateId || slidesTemplate);
-            const enrichedDeck: SlideDeck & { htmlSlug?: string; variant?: string } = tpl.htmlSlug
-              ? { ...fallbackDeck, templateId: tpl.id, htmlSlug: tpl.htmlSlug, variant: tpl.variant }
-              : fallbackDeck;
+            const enrichedDeck: SlideDeck & { htmlSlug?: string; variant?: string } = {
+              ...fallbackDeck,
+              templateId: tpl.id,
+              palette: slidesTemplatePalette(tpl.id),
+              ...(tpl.htmlSlug ? { htmlSlug: tpl.htmlSlug, variant: tpl.variant } : {}),
+            };
             const finalContent = (
               narrative ||
               (`Generated ${enrichedDeck.slides.length} slides.`)
