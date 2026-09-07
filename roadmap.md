@@ -54,4 +54,5 @@
 - [x] Missing @doc tags added (chat-alibaba, storage-purge); stale slides test fixed — full suite green
 - [x] Browser sweep of main pages (desktop + phone): no console errors, no horizontal overflow, 404 page correct
 - [ ] Optional: repo-wide Prettier formatting pass (20k formatting-only lint notes)
-- [ ] Backend gap: referrals needs `my_referral_milestone` function + referral tables
+- [x] Referrals backend live: milestone grants table, 3 required tasks, read/claim functions + auto-check trigger
+- [ ] Add real links for the 3 required steps (Trustpilot review, X follow, X like+repost)
