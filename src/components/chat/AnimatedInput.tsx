@@ -290,10 +290,10 @@ const AnimatedInput = ({
           />
         )}
       </AnimatePresence>
-      {computerOpen ? (
-        <div className="md:rounded-[28px] overflow-hidden">{computerSlot}</div>
-      ) : (
+      {/* The computer screen always sits above the input, never in place of it,
+          so the input can never disappear when a task ends. */}
       <div className="md:rounded-[28px]">
+
         <motion.div
           data-compact={compact ? "true" : "false"}
           className={`chat-composer-frame chat-mobile-input-glow composer-card pointer-events-auto relative z-10 transition-[border-radius,margin,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
