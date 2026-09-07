@@ -85,14 +85,10 @@ export const ChatMessagesList = forwardRef<HTMLDivElement, ChatMessagesListProps
             if (editingIndex === i) return null;
             const stableKey = msg.clientId || msg.id || msg.created_at || `${msg.role}-${String(msg.content || "").slice(0, 48)}-${i}`;
             return (
-              <div
-                key={stableKey}
-                data-msg-anchor={stableKey}
-                style={{
-                  contentVisibility: "auto",
-                  containIntrinsicSize: "auto 120px",
-                }}
-              >
+              // No `content-visibility: auto` here: tall cards (slides decks,
+              // research reports) mis-measure with an intrinsic size hint and
+              // earlier messages visibly blank out while scrolling.
+              <div key={stableKey} data-msg-anchor={stableKey}>
                 <ChatMessageItem
                   msg={msg}
                   i={i}
