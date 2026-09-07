@@ -105,15 +105,23 @@ const BROWSER_UA =
 /**
  * Official search APIs, used before any HTML-scraping fallback because cloud
  * IPs are frequently blocked by the scraped endpoints. Each one activates only
- * when its function secret is present.
+ * when its function secret is present. Locale is inferred from the query so
+ * Arabic questions get Arabic Google/Brave results instead of irrelevant
+ * US-English hits.
  */
+const QUERY_LOCALE = (query: string): { gl: string; hl: string } =>
+  /[\u0600-\u06FF]/.test(query) ? { gl: "sa", hl: "ar" } : { gl: "us", hl: "en" };
+
 async function apiSearch(query: string, count: number): Promise<WebSearchResult[]> {
   const brave = Deno.env.get("BRAVE_API_KEY")?.trim();
+  const locale = QUERY_LOCALE(query);
   if (brave) {
     try {
       const url = new URL("https://api.search.brave.com/res/v1/web/search");
       url.searchParams.set("q", query);
       url.searchParams.set("count", String(Math.min(Math.max(count, 1), 20)));
+      url.searchParams.set("search_lang", locale.hl);
+      url.searchParams.set("country", locale.gl.toUpperCase());
       const resp = await fetch(url, {
         headers: { Accept: "application/json", "X-Subscription-Token": brave },
       });
