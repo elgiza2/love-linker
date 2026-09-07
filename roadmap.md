@@ -58,11 +58,12 @@
 - [ ] Add real links for the 3 required steps (Trustpilot review, X follow, X like+repost)
 
 ## OpenManus agent replacement (2026-09-07)
-- [ ] Run the real OpenManus Python repo (vendored, pinned) as a Docker service with a thin FastAPI wrapper
-- [ ] Unified agent_runs/steps/tool_calls/artifacts schema + agent-bridge edge function
+- [x] DECISION: Kortix/Suna dropped (signups closed, needs VPS). New target: run real OpenManus inside a hosted Novita sandbox.
+- [x] NOVITA_API_KEY saved as a Supabase secret
+- [ ] Constraint: keep the existing AI text provider (abliteration.ai) — do NOT switch model providers
+- [ ] Constraint: everything on the user's own Supabase; nothing on Lovable Cloud
+- [ ] Unified agent_runs/steps/tool_calls/artifacts schema (own Supabase) with RLS + GRANTs
+- [ ] `agent-bridge` edge function: create/reuse Novita sandbox, run OpenManus task, persist steps
 - [ ] Wire UI (useAgentRun) with no design changes; AskHuman + stop + resume
 - [ ] Remove legacy engines: manusLoop, src/lib/agentkernel, _shared/agentkernel, long-run, agent-tick, operator-orchestrator
-- [ ] Blocker: hosting target for the container (Fly.io/VPS) or E2B key
-- [ ] Deep research: compare ready-to-run open-source agent repos (OpenManus, Suna/Kortix, Agent Zero, Bytebot, Skyvern, Open Interpreter, Browser Use, etc.) and let the user pick one
-- [x] DECISION: primary agent = Suna/Kortix; internal browser sub-agent = Skyvern + browser-use
-- [ ] Research candidate repos for additional internal specialist sub-agents (coding, deep research, data analysis, docs/slides, scraping) for the user to pick
+
