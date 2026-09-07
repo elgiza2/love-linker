@@ -45,3 +45,13 @@
 ## طلبات 2026-09-07 (جديدة)
 - [x] شريط الكومبيوتر: تصميم موحد مع الشيبس + شريط إغلاق علوي عند التوسيع
 - [x] مؤشر التفكير/الخطوات: إزالة الأرقام واستبدالها بأيقونات الأدوات، وتنظيف نص "Plan set"
+
+## Full audit (2026)
+- [x] Welcome screen limited to phones
+- [x] Arabic-only user messages moved to English source + Arabic dictionary entries
+- [x] Sidebar "New chat"/"New project" labels unified with translation layer
+- [x] React hook-order bugs fixed (ChatMessage, AssistantMediaBlock)
+- [x] Missing @doc tags added (chat-alibaba, storage-purge); stale slides test fixed — full suite green
+- [x] Browser sweep of main pages (desktop + phone): no console errors, no horizontal overflow, 404 page correct
+- [ ] Optional: repo-wide Prettier formatting pass (20k formatting-only lint notes)
+- [ ] Backend gap: referrals needs `my_referral_milestone` function + referral tables
