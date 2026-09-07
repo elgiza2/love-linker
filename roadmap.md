@@ -56,3 +56,10 @@
 - [ ] Optional: repo-wide Prettier formatting pass (20k formatting-only lint notes)
 - [x] Referrals backend live: milestone grants table, 3 required tasks, read/claim functions + auto-check trigger
 - [ ] Add real links for the 3 required steps (Trustpilot review, X follow, X like+repost)
+
+## OpenManus agent replacement (2026-09-07)
+- [ ] Run the real OpenManus Python repo (vendored, pinned) as a Docker service with a thin FastAPI wrapper
+- [ ] Unified agent_runs/steps/tool_calls/artifacts schema + agent-bridge edge function
+- [ ] Wire UI (useAgentRun) with no design changes; AskHuman + stop + resume
+- [ ] Remove legacy engines: manusLoop, src/lib/agentkernel, _shared/agentkernel, long-run, agent-tick, operator-orchestrator
+- [ ] Blocker: hosting target for the container (Fly.io/VPS) or E2B key

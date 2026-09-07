@@ -1,88 +1,77 @@
-# استبدال الوكيل الحالي بمحرك OpenManus كامل
+# تشغيل OpenManus الأصلي (كود بايثون حقيقي) كوكيل التطبيق الوحيد
 
-## المشكلة الحقيقية (نتيجة الفحص)
+## المبدأ
 
-عندنا حاليًا **4 محركات وكيل منفصلة** بتتعارض:
+**مش إعادة كتابة.** هنشغّل ريبو `FoundationAgents/OpenManus` نفسه كما هو (Python)، بنفس الـagents والأدوات والـsandbox والـMCP بتاعته، ونربطه بالتطبيق. التطبيق يبقى واجهة فقط للوكيل، والوكيل الحقيقي بايثون.
 
-1. `src/lib/manusLoop.ts` — لوب صغير جوه كل رسالة شات (5 أدوات، بدون حفظ، بدون تنفيذ كود).
-2. `src/lib/agentkernel/*` — نسخة تانية بتشتغل في التاب فقط، بتقفل لو التاب اتقفل.
-3. `supabase/functions/_shared/agentkernel/*` (3120 سطر) — النسخة "الحقيقية" على السيرفر.
-4. `supabase/functions/operator-orchestrator` — **مش بينفذ أي أداة أصلًا**، بس بيكتب وصف خطوات ويقول "تم".
+سبب مهم: Supabase Edge Functions بتشغّل Deno فقط ومش بتشغّل بايثون، فـOpenManus لازم يشتغل على خدمة بايثون مستقلة (Docker) والتطبيق يتكلم معاها.
 
-وكمان: 4 جداول مختلفة لنفس المفهوم (`long_runs`, `operator_runs`, `computer_tasks`, `dev_runs`)، تبديل صامت بين محرك السيرفر ومحرك التاب في منتصف المهمة، ومفيش استخدام لـ tool-calling الحقيقي — كل حاجة JSON مستخرج بالنص (سبب أساسي في الفشل والتخبيط)، ومفيش sandbox حقيقي لتنفيذ كود.
-
-## الهدف
-
-محرك واحد فقط، نسخة أمينة من معمارية OpenManus بـ TypeScript، بيشتغل فعليًا على السيرفر مع أدوات حقيقية.
-
-## المعمارية الجديدة (مطابقة لـ OpenManus)
+## المعمارية
 
 ```text
-BaseAgent      → run loop, memory, state machine, max_steps, stuck detection
-  ReActAgent   → think() / act()
-    ToolCallAgent → tool_calls حقيقية، tool_choice (auto/required/none)، max_observe،
-                    special tools (terminate)
-      Manus      → السيستم برومبت + next_step_prompt + الأدوات + MCP
-      SweAgent   → أدوات الكود فقط
-      DataAgent  → تحليل بيانات ورسومات
-PlanningFlow + PlanningTool → خطة خطوات، كل خطوة يشغّلها الوكيل المناسب
+المتصفح (React كما هو)
+   ↓ supabase.functions.invoke
+Edge Function: agent-bridge (Deno)  ← الأمان، هوية المستخدم، الحصص، الحفظ في الداتابيز
+   ↓ HTTPS + SSE (توكن خدمة سري)
+خدمة OpenManus (Docker, Python)  ← الريبو الأصلي + غلاف FastAPI رقيق
+   ├── app/agent/manus.py …        (الكود الأصلي، بدون تعديل)
+   ├── app/tool/* , app/flow/*     (الكود الأصلي)
+   ├── Docker sandbox              (بايثون/باش/ملفات حقيقية جوه كونتينر)
+   └── MCP: browser-use CLI + سيرفرات المستخدم
 ```
 
-- الذاكرة: `Message[]` بسقف 100 رسالة + قص بالتوكن.
-- كشف التكرار: نفس منطق OpenManus (`duplicate_threshold = 2`) مع تعديل البرومبت لتغيير الاستراتيجية، مربوط بسلّم التصعيد الموجود عندنا (`loopGuard`).
-- حالة الوكيل: `IDLE / RUNNING / FINISHED / ERROR` محفوظة في الداتابيز، فالمهمة تكمل بعد قفل التاب وتستكمل بالكرون.
+الغلاف الوحيد اللي بنكتبه في خدمة البايثون هو `server.py` (FastAPI): `POST /runs` يبدأ رن، `GET /runs/{id}/events` يبث الأحداث SSE، `POST /runs/{id}/answer` للرد على `AskHuman`، `POST /runs/{id}/stop`، `GET /healthz`. جوه الـrun بنستدعي `Manus.create()` و`PlanningFlow` من الريبو الأصلي، وبنسجّل كل خطوة/نداء أداة عبر hook على `Memory`/`ToolCollection` بدون تغيير منطق OpenManus.
 
-## الأدوات (كلها تنفيذ حقيقي، مش وصف)
+بديل بدون سيرفر دائم (لو مفيش استضافة): كل مهمة تتشغّل جوه sandbox مؤقت (E2B) بيسحب الريبو ويشغّل `main.py`. أبطأ في البداية وأغلى، وهنستخدمه fallback فقط.
 
-| الأداة | التنفيذ عندنا |
-| --- | --- |
-| `python_execute` | Sandbox حقيقي (E2B) — بايثون كامل + pip |
-| `bash` | نفس الـ sandbox، سيشن واحدة مستمرة |
-| `str_replace_editor` | ملفات الـ sandbox: view/create/str_replace/insert/undo |
-| `browser` | Browser Use Cloud (المفتاح موجود بالفعل) — تنقل/كتابة/كليك/استخراج |
-| `web_search` | Brave + قراءة الصفحات (موجود) |
-| `mcp_*` | عميل MCP الحقيقي على سيرفرات المستخدم (موجود، هيتنقل كما هو) |
-| `ask_human` | يوقف الرن ويسأل في الواجهة (جدول `agent_questions` الموجود) |
-| `planning` | إنشاء/تحديث/تعليم الخطوات |
-| `terminate` | إنهاء الرن بنتيجة |
-| أدوات التطبيق | ريجستري `agent_tools_registry` الحالي يتحول لأدوات tool-calling عادية |
+## نسخة OpenManus + النموذج
 
-## نداء الموديل
+- تثبيت commit محدد من الريبو (git submodule/`vendor/OpenManus`) علشان مانتفاجئ بتغييرات.
+- `config.toml` بيتولد وقت التشغيل: `base_url = https://ai.gateway.lovable.dev/v1`, `model = openai/gpt-5.6-sol`, والمفتاح من متغير بيئة على السيرفر. OpenManus أصلًا OpenAI-compatible فده يشتغل من غير تعديل كود.
+- `[sandbox] use_sandbox = true` علشان الكود والباش يتنفذوا جوه كونتينر معزول.
+- `[search]` مفتاح Brave/Google الموجود عندنا.
+- المتصفح: `uvx browser-use --cli-mcp` كما هو في الريبو.
+- سيرفرات MCP بتاعة المستخدم تتحوّل من `mcp_connections` في الداتابيز إلى `config/mcp.json` عند بداية كل رن.
 
-نستخدم tool-calling الأصلي بدل استخراج JSON بالنص، عبر AI SDK + بوابة Lovable AI (`openai/gpt-5.6-sol`)، مع الإبقاء على مسار الموديل الحالي كـ fallback واحد فقط. ده لوحده هيقضي على معظم "الوكيل بيهرّج" لأن الأدوات بتتنادى بمخطط ملزم.
+## الأمان
 
-## التغييرات في الكود
+- خدمة البايثون مش مكشوفة للمتصفح أبدًا؛ الوصول ليها من الـEdge Function فقط بتوكن سري + قائمة IP.
+- كل رن جوه كونتينر مستقل، `network_mode` محدود، مهلة زمنية، سقف CPU/ذاكرة، وحد أقصى للخطوات — نفس إعدادات OpenManus.
+- مفاتيح المستخدم/التوكنز تتمرر للرن كمتغيرات بيئة مؤقتة، مش متخزنة في الكونتينر.
 
-**جديد** `supabase/functions/_shared/openmanus/`:
-`agent/base.ts`, `agent/react.ts`, `agent/toolcall.ts`, `agent/manus.ts`, `schema.ts` (Message/Memory/ToolCall/AgentState), `llm.ts` (tool-calling + عدّ توكن + قص), `tools/` (كل أداة في ملف), `tools/collection.ts`, `flow/planning.ts`, `sandbox/e2b.ts`, `mcp/client.ts`, `prompts.ts`.
+## الداتابيز (موحدة، بدل 4 جداول متفرقة)
 
-**جديد** `supabase/functions/agent-run/` — الواجهة الوحيدة: `start / step / status / answer / stop / cron_tick`.
+`agent_runs` (المهمة، الحالة، الخطة، النتيجة، التكلفة) + `agent_steps` + `agent_tool_calls` + `agent_artifacts`، مع RLS و GRANT، وview توافقية على `long_runs` لحد ما الواجهة تتحول. `agent_questions` تُستخدم كما هي لـ`AskHuman`.
 
-**يتحول لـ shim ثم يُحذف**: `supabase/functions/long-run`, `_shared/agentkernel/*`, `operator-orchestrator`, `src/lib/manusLoop.ts`, `src/lib/agentkernel/*` (نخلي redirect مؤقت أسبوع لأي رن قديم شغال).
+## الواجهة
 
-**الداتابيز**: جداول موحدة `agent_runs`, `agent_steps`, `agent_tool_calls`, `agent_artifacts` + RLS + GRANT، مع إبقاء `agent_questions`/`agent_memory` كما هي، وview توافقية على `long_runs` لحد ما الواجهة تتحول.
+`useLongRun` → `useAgentRun` بيقرأ من الجداول الجديدة + Realtime، وبنفس المكونات وبنفس الشكل بالحرف. **صفر تغيير في التصميم.**
 
-**الواجهة**: `useLongRun` يتحول لـ `useAgentRun` على الجداول الجديدة، وبنفس شكل العرض الحالي بالحرف — الخطة/الخطوات/الأسئلة/الملفات. **مفيش أي تغيير في التصميم.**
+## تنظيف المحركات القديمة (مهم)
+
+يتشال بالكامل بعد التحويل: `src/lib/manusLoop.ts`, `src/lib/agentkernel/*`, `supabase/functions/_shared/agentkernel/*`, `long-run`, `agent-tick`, `operator-orchestrator` (اللي مش بينفذ أي أداة أصلًا). محرك واحد فقط يفضل.
 
 ## الترتيب التنفيذي
 
-1. الأساس: schema + memory + state + llm بـ tool-calling (+ تست وحدات على اللوب وكشف التكرار).
-2. ToolCallAgent + `terminate` + `web_search` — أول رن حقيقي من الطرف للطرف.
-3. Sandbox: `python_execute` + `bash` + `str_replace_editor` (مفتاح E2B مطلوب).
-4. المتصفح + MCP + أدوات التطبيق المسجلة.
-5. PlanningTool + PlanningFlow + `ask_human`.
-6. جداول جديدة + كرون + استكمال بعد قفل التاب.
-7. تحويل الواجهة، ثم حذف المحركات الأربعة القديمة.
-8. اختبار حقيقي: 6 مهام (بحث، كتابة كود وتشغيله، ملف Excel، مهمة متصفح بتسجيل دخول، مهمة تسأل المستخدم، مهمة طويلة بعد قفل التاب) + قياس أن كل خطوة نفذت فعلًا مش وصف.
+1. `vendor/OpenManus` + `Dockerfile` + `server.py` (FastAPI) + تشغيل محلي وإثبات رن حقيقي من الطرف للطرف.
+2. جداول الداتابيز الجديدة + `agent-bridge` edge function + بث الأحداث للواجهة.
+3. توليد `config.toml` و`mcp.json` من إعدادات المستخدم + تمرير مفاتيح البحث/المتصفح.
+4. `AskHuman` مربوط بالواجهة (سؤال/رد) + `stop` + الاستكمال بعد قفل التاب.
+5. تحويل الواجهة للجداول الجديدة، ثم حذف المحركات الأربعة القديمة.
+6. اختبار 6 مهام حقيقية: بحث، كتابة كود وتشغيله فعليًا، توليد ملف Excel، مهمة متصفح، مهمة تسأل المستخدم، مهمة طويلة بعد قفل التاب.
 
-## حاجة واحدة محتاجة منك
+## اللي محتاجه منك (بلوكر واحد)
 
-مفتاح **E2B API key** (أو بديل sandbox تحبه) علشان `python_execute`/`bash` يشتغلوا بجد. لو مش متاح، الخطوة 3 تشتغل بجافاسكريبت في sandbox أضعف لحد ما توفر المفتاح، وباقي المحرك يخلص عادي.
+مكان نشغّل فيه الكونتينر — أي واحد من دول كفاية:
+- حساب Fly.io / Railway / Render (أرشحه: Fly.io، أرخص وأسهل مع Docker)، **أو**
+- VPS عندك (Hetzner/DigitalOcean) بـDocker، **أو**
+- مفتاح E2B لو مش عايز سيرفر دائم (بديل أبطأ).
+
+لحد ما توفر واحد منهم: أنا هبني الخطوات 1–5 كاملة وأشغّل الخدمة محليًا هنا لإثبات إنها تعمل، والربط النهائي يتم أول ما يبقى فيه مكان استضافة.
 
 ## معايير القبول
 
-- محرك واحد فقط في الكود، ومفيش أي مسار بينفذ خطوة "وهمية".
-- كل خطوة في الترايس لها نداء أداة حقيقي بنتيجة محفوظة.
-- المهمة تكمل والتاب مقفول وتستكمل بعد الرجوع.
-- تكرار نفس الفعل مرتين يغيّر الاستراتيجية أوتوماتيك، و4 مرات يوقف ويسأل.
+- الكود اللي بيقرر وينفّذ هو كود OpenManus الأصلي، مش نسخة مكتوبة عندنا.
+- كل خطوة في الترايس ليها نداء أداة حقيقي بنتيجة حقيقية.
+- محرك واحد في المشروع، ومفيش أي مسار "وهمي".
 - التصميم زي ما هو بالظبط.
