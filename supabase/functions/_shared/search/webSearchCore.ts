@@ -156,6 +156,10 @@ async function apiSearch(query: string, count: number): Promise<WebSearchResult[
   }
 
   const serper = (
+    Deno.env.get("Sreper") ||
+    Deno.env.get("sreper") ||
+    Deno.env.get("SREPER") ||
+    Deno.env.get("SREPER_API_KEY") ||
     Deno.env.get("Serper") ||
     Deno.env.get("serper") ||
     Deno.env.get("SERPER") ||
