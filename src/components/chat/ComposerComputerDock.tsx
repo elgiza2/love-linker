@@ -1,11 +1,13 @@
 /**
  * @doc Computer surface embedded straight into the composer.
  *
- * Collapsed: a clean chip-style button that looks exactly like the starter
- * chips — rounded rectangle, border, muted background, text only, no icons.
- * Expanded: a browser preview area with a thin top bar that matches the chip
- * style and collapses the preview when tapped. No icons anywhere.
+ * Collapsed: a chip-style button with a very small square peek of the live
+ * screen inside it, at the same chip height.
+ * Expanded: a browser preview area with a thin top bar that collapses it again.
+ * The chip closes itself when the task ends so the input is never left alone
+ * with an empty screen.
  */
+import { useEffect } from "react";
 import { useComputerLiveView } from "@/lib/computer/liveView";
 import { useUserLang } from "@/lib/authI18n";
 import { useComposerComputer } from "./ComposerComputerContext";
@@ -13,10 +15,18 @@ import { useComposerComputer } from "./ComposerComputerContext";
 export function ComposerComputerDock({ className = "" }: { className?: string }) {
   const view = useComputerLiveView();
   const lang = useUserLang();
-  const { open, toggle } = useComposerComputer();
+  const { open, toggle, setOpen } = useComposerComputer();
   const isAr = lang.startsWith("ar");
 
-  if (!view || (!view.active && !view.url && !view.poster)) return null;
+  const empty = !view || (!view.active && !view.url && !view.poster);
+
+  // When the run ends there is nothing left to show, so fold the screen back
+  // down instead of leaving an expanded panel behind.
+  useEffect(() => {
+    if (empty && open) setOpen(false);
+  }, [empty, open, setOpen]);
+
+  if (empty) return null;
 
   const title = isAr ? "كمبيوتر ميغسي" : "Megsy Computer";
   const closeLabel = isAr ? "إغلاق الكمبيوتر" : "Close computer";
@@ -68,11 +78,32 @@ export function ComposerComputerDock({ className = "" }: { className?: string })
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          aria-label={
-            isAr ? "تكبير كومبيوتر ميغسي" : "Expand Megsy Computer"
-          }
-          className="group inline-flex h-10 w-auto items-center gap-2 rounded-xl border border-border bg-card px-3.5 text-start transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97]"
+          aria-label={isAr ? "تكبير كومبيوتر ميغسي" : "Expand Megsy Computer"}
+          className="group inline-flex h-10 w-auto items-center gap-2 rounded-xl border border-border bg-card px-2.5 text-start transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97]"
         >
+          {/* Tiny square peek of the live screen, same height as the chip. */}
+          <span className="relative block h-6 w-6 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
+            {view.url ? (
+              <iframe
+                src={view.url}
+                title=""
+                aria-hidden
+                tabIndex={-1}
+                scrolling="no"
+                className="pointer-events-none absolute left-0 top-0 h-[360px] w-[540px] origin-top-left border-0"
+                style={{ transform: "scale(0.0445)" }}
+                sandbox="allow-scripts allow-same-origin"
+              />
+            ) : view.poster ? (
+              <img
+                src={view.poster}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover object-top"
+              />
+            ) : (
+              <span className="absolute inset-0 animate-pulse bg-muted-foreground/20" />
+            )}
+          </span>
           <span className="truncate text-[13px] font-medium text-foreground">
             {title}
           </span>

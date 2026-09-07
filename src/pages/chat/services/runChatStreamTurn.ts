@@ -635,8 +635,10 @@ export async function runChatStreamTurn(opts: RunChatStreamTurnOptions): Promise
           signal: controller.signal,
           onStep: (label, detail) => {
             setToolActivity({ name: label, status: "running" });
-            narrate(`${label}: ${detail.slice(0, 160)}`);
+            // Show the agent's actual reasoning line, not a step counter.
+            narrate(detail === label ? label : detail.slice(0, 200));
           },
+
         });
         if (result?.answer) {
           const evidence = `Work completed by the agent (${result.steps} steps). Use this as the verified result:\n\n${result.answer}`;
