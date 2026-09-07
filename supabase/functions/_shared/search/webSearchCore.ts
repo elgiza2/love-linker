@@ -421,7 +421,7 @@ async function keylessSearch(query: string, count: number, offset = 0): Promise<
 
 export async function webSearch(query: string, count = 8, offset = 0): Promise<WebSearchResponse> {
   const trimmed = (query || "").trim();
-  console.log(`serperKeyLen=${(Deno.env.get("Serper")||Deno.env.get("serper")||Deno.env.get("SERPER")||Deno.env.get("SERPER_API_KEY")||Deno.env.get("SERPER_KEY")||"").trim().length} braveLen=${(Deno.env.get("BRAVE_API_KEY")||"").trim().length} tavilyLen=${(Deno.env.get("TAVILY_API_KEY")||"").trim().length}`);
+  console.log(`serperKeyLen=${(Deno.env.get("Sreper")||Deno.env.get("sreper")||Deno.env.get("SREPER")||Deno.env.get("SREPER_API_KEY")||Deno.env.get("Serper")||Deno.env.get("serper")||Deno.env.get("SERPER")||Deno.env.get("SERPER_API_KEY")||Deno.env.get("SERPER_KEY")||"").trim().length} braveLen=${(Deno.env.get("BRAVE_API_KEY")||"").trim().length} tavilyLen=${(Deno.env.get("TAVILY_API_KEY")||"").trim().length}`);
   console.log(`webSearch q=${JSON.stringify(trimmed)} codepoints=${[...trimmed].slice(0,8).map((c)=>c.codePointAt(0)?.toString(16)).join(",")}`);
   if (!trimmed) return { results: [], error: "empty query" };
 
