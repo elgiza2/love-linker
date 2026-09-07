@@ -177,8 +177,12 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
         const cleanPart = (raw: string, isFirst: boolean): string => {
           let out = raw;
           if (isFirst) {
-            const heading = out.match(/(^|\n)#{1,3} /);
-            if (heading) out = out.slice(heading.index === 0 ? 0 : (heading.index ?? 0) + 1);
+            // Everything before the first markdown heading is planning
+            // self-talk ("We need to search…"): hold it back entirely until
+            // the real report starts.
+            const heading = out.match(/(^|\n)#{1,4} /);
+            if (!heading) return "";
+            out = out.slice(heading.index === 0 ? 0 : (heading.index ?? 0) + 1);
           }
           const cut = out.match(SOURCES_HEADING);
           if (cut && cut.index !== undefined) out = out.slice(0, cut.index);
