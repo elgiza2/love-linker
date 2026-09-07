@@ -87,22 +87,41 @@ export async function stopAgentRun(runId: string): Promise<void> {
 }
 
 /** Human-readable label for a step, used in the live activity trace. */
+/** Plain-language names for the agent's own tools. */
+const TOOL_LABELS: Record<string, string> = {
+  browser_use: "Browsing the web",
+  web_search: "Searching the web",
+  python_execute: "Running code",
+  bash: "Working in the terminal",
+  str_replace_editor: "Editing files",
+  file_saver: "Saving a file",
+  terminate: "Wrapping up",
+  ask_human: "Asking you",
+};
+
+/**
+ * Turns a raw agent event into something worth reading. Bare step counters are
+ * dropped: what the agent is actually thinking and doing is the useful part.
+ */
 export function describeEvent(event: AgentEvent): string | null {
   switch (event.type) {
-    case "step_start":
-      return `Step ${event.step ?? ""}`.trim();
-    case "thought":
-      return (event.text || "").slice(0, 200);
+    case "thought": {
+      const text = (event.text || "").replace(/\s+/g, " ").trim();
+      return text ? text.slice(0, 220) : null;
+    }
     case "tool_call":
-      return `→ ${event.name || "tool"}`;
-    case "tool_result":
-      return (event.text || "").slice(0, 200);
+      return TOOL_LABELS[event.name || ""] || (event.name || "").replace(/_/g, " ") || null;
+    case "tool_result": {
+      const text = (event.text || "").replace(/\s+/g, " ").trim();
+      return text ? text.slice(0, 220) : null;
+    }
     case "ask":
-      return event.question || "Waiting for your reply";
+      return event.question || null;
     default:
       return null;
   }
 }
+
 
 export interface RunAgentTaskOptions {
   userText: string;
