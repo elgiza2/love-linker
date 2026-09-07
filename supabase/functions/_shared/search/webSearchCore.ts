@@ -167,7 +167,12 @@ async function apiSearch(query: string, count: number): Promise<WebSearchResult[
       const resp = await fetch("https://google.serper.dev/search", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-API-KEY": serper },
-        body: JSON.stringify({ q: query, num: Math.min(Math.max(count, 1), 20) }),
+        body: JSON.stringify({
+          q: query,
+          num: Math.min(Math.max(count, 1), 20),
+          gl: locale.gl,
+          hl: locale.hl,
+        }),
       });
       if (resp.ok) {
         const data = await resp.json();
