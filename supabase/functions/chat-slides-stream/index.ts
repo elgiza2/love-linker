@@ -17,6 +17,7 @@
  *      client follows via Realtime (see `subscribeJob`).
  */
 import { callModel, hasModelProvider, MODELS } from "../_shared/abliteration.ts";
+import { hasCerebras } from "../_shared/cerebras.ts";
 import {
   admin,
   background,

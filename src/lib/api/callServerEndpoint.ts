@@ -33,7 +33,7 @@ export async function callServerEndpoint(name: keyof typeof EDGE_FUNCTION_NAMES 
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && !ALWAYS_EDGE.has(String(name))) {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`/api/${name}`, {
