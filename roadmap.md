@@ -64,3 +64,5 @@
 - [ ] Remove legacy engines: manusLoop, src/lib/agentkernel, _shared/agentkernel, long-run, agent-tick, operator-orchestrator
 - [ ] Blocker: hosting target for the container (Fly.io/VPS) or E2B key
 - [ ] Deep research: compare ready-to-run open-source agent repos (OpenManus, Suna/Kortix, Agent Zero, Bytebot, Skyvern, Open Interpreter, Browser Use, etc.) and let the user pick one
+- [x] DECISION: primary agent = Suna/Kortix; internal browser sub-agent = Skyvern + browser-use
+- [ ] Research candidate repos for additional internal specialist sub-agents (coding, deep research, data analysis, docs/slides, scraping) for the user to pick
