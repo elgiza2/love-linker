@@ -1,7 +1,7 @@
 import EmptyState from "@/components/common/EmptyState";
 import { memo, startTransition, useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useLocation, type NavigateOptions } from "react-router-dom";
-import { Plus, PanelLeft, LogIn, Cloud, Sparkles, ChevronDown, Mail as MailIcon, X, Cog } from "lucide-react";
+import { SquarePlus, PanelLeft, LogIn, Cloud, Sparkles, ChevronDown, Mail as MailIcon, X, Cog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserSafe } from "@/lib/authSafe";
 import { getOwnProfile } from "@/lib/ownProfile";
@@ -553,7 +553,7 @@ const AppSidebar = ({
           style={{ color: "var(--overlay-white-100)" }}
         >
           <span className="shrink-0">
-            <Plus size={17} strokeWidth={2.2} />
+            <SquarePlus size={17} strokeWidth={2.2} />
           </span>
           {!isCollapsed && (
             <span className="text-[13px] tracking-tight flex-1 text-left" style={{ fontWeight: 600 }}>
@@ -1066,7 +1066,7 @@ const AppSidebar = ({
                   className="w-full h-11 px-2 flex items-center gap-3 rounded-none transition-all active:scale-95"
                   aria-label={isBuildMode ? "New project" : "New chat"}
                 >
-                  <Plus size={19} strokeWidth={2.2} />
+                  <SquarePlus size={19} strokeWidth={2.2} />
                   <span className="text-[14.5px]">
                     {isBuildMode ? "New project" : "New chat"}
                   </span>
