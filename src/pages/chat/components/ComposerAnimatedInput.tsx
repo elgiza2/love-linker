@@ -15,7 +15,7 @@ interface ComposerAnimatedInputProps {
   // Input state
   input: string;
   setInput: (v: string) => void;
-  handleSend: () => unknown | Promise<unknown>;
+  handleSend: (text?: string) => unknown | Promise<unknown>;
   handleCancel: () => void;
   // Plus menu
   plusMenuOpen: boolean;
@@ -122,7 +122,7 @@ export function ComposerAnimatedInput(props: ComposerAnimatedInputProps) {
 
 
         onChange={setInput}
-      onSend={handleSend as any}
+      onSend={handleSend}
       onCancel={() => {
         if (activeComputerRunId === PENDING_COMPUTER_RUN) {
           clearActiveComputerRun(PENDING_COMPUTER_RUN);

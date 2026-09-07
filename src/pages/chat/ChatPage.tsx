@@ -2248,7 +2248,7 @@ const ChatPage = () => {
   }, [chatMode]);
 
 
-  const handleSend = () => handleSendWithText();
+  const handleSend = (text?: string) => handleSendWithText(text);
 
   // Warm the modules the send path imports so the FIRST send is as fast as
   // every later one (see prewarmSendPath docs).

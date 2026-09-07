@@ -35,7 +35,7 @@ interface SmartQuestion {
 interface AnimatedInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSend: () => void;
+  onSend: (text?: string) => void;
   onCancel?: () => void;
   onPlusClick: () => void;
   disabled?: boolean;
@@ -127,7 +127,11 @@ const AnimatedInput = ({
 
   const handleSendWithSlash = useCallback(() => {
     if (tryRunSlashCommand()) return;
-    onSend();
+    // Read from the textarea at the moment of the tap. Mobile keyboards can
+    // commit their final composition just before `click`, while React's parent
+    // state is still one frame behind; forwarding the live value prevents a
+    // valid tap from being mistaken for an empty message.
+    onSend(textareaRef.current?.value ?? value);
   }, [tryRunSlashCommand, onSend]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef(value);
@@ -506,6 +510,7 @@ const AnimatedInput = ({
                   transition={{ duration: 0.15, ease: "easeOut" }}
                 >
                   <Button
+                    type="button"
                     onClick={handleSendWithSlash}
                     disabled={disabled || !hasText}
                     data-testid="mobile-composer-send"
