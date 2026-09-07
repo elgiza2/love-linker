@@ -165,6 +165,8 @@ export async function runAgentTask(
   const started = Date.now();
   const budget = options.budgetMs ?? 8 * 60_000;
   const interval = options.pollIntervalMs ?? 3_000;
+  let lastActivity = "";
+
 
   while (true) {
     if (options.signal?.aborted || Date.now() - started > budget) {
