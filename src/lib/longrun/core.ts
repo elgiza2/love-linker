@@ -187,7 +187,9 @@ async function syncRun(supabase: SupabaseClient, run: Record<string, any>) {
         fresh.map((s, i) => ({
           run_id: run.id,
           type: "thought",
-          title: s.nextGoal || s.evaluationPreviousGoal || `Step ${already + i + 1}`,
+          // Real reasoning only — a bare step counter tells the user nothing.
+          title: s.nextGoal || s.evaluationPreviousGoal || s.url || "Working",
+
           detail: [s.evaluationPreviousGoal, s.url].filter(Boolean).join(" · ") || null,
         })),
       );
