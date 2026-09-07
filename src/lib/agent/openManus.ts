@@ -182,8 +182,14 @@ export async function runAgentTask(
 
     for (const event of poll.events) {
       const label = describeEvent(event);
-      if (label) options.onStep?.(event.type === "tool_call" ? label : "Working", label);
+      if (!label) continue;
+      if (event.type === "tool_call") lastActivity = label;
+      options.onStep?.(
+        event.type === "tool_call" ? label : lastActivity || "Thinking",
+        label,
+      );
     }
+
 
     if (poll.run.status === "awaiting_input" && poll.run.question) {
       options.onQuestion?.(poll.run.question, runId);
