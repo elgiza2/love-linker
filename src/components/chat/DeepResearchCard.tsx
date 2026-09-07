@@ -6,6 +6,7 @@ import {
 } from "@/lib/normalizeResearchReport";
 import { RESEARCH_STEPS, type ResearchStepId } from "@/lib/research/deepResearchShared";
 import ToolCard from "./primitives/ToolCard";
+import { detectLang } from "@/lib/detectLang";
 
 interface DeepResearchCardProps {
   query: string;
@@ -34,6 +35,8 @@ const DeepResearchCard = ({
   onRetry,
 }: DeepResearchCardProps) => {
   const navigate = useNavigate();
+  // Step labels and buttons follow the language of the question the user asked.
+  const ar = detectLang(query) === "ar";
   const cleanReport = normalizeResearchReport(report);
   const isRtl = detectResearchReportDirection(cleanReport) === "rtl";
   const isEmpty = !cleanReport?.trim();
@@ -48,15 +51,15 @@ const DeepResearchCard = ({
   if (status === "error") {
     return (
       <ToolCard
-        dir="ltr"
+        dir={ar ? "rtl" : "ltr"}
         className="max-w-[420px]"
         icon={<AlertTriangle className="h-4 w-4" />}
         title={query}
-        subtitle="Deep Research failed"
+        subtitle={ar ? "فشل البحث العميق" : "Deep Research failed"}
       >
-        <div className="text-left">
+        <div className={ar ? "text-right" : "text-left"}>
           <p className="mb-3 whitespace-pre-wrap break-words text-sm text-destructive">
-            {errorMessage || "Deep Research failed. Please try again."}
+            {errorMessage || (ar ? "فشل البحث العميق. حاول تاني." : "Deep Research failed. Please try again.")}
           </p>
           {onRetry && (
             <button
@@ -64,7 +67,7 @@ const DeepResearchCard = ({
               onClick={onRetry}
               className="inline-flex items-center gap-1.5 justify-center px-5 h-9 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
-              Retry
+              {ar ? "إعادة المحاولة" : "Retry"}
             </button>
           )}
         </div>
@@ -76,13 +79,13 @@ const DeepResearchCard = ({
     const activeIndex = RESEARCH_STEPS.findIndex((step) => step.id === activeStepId);
     return (
       <ToolCard
-        dir="ltr"
+        dir={ar ? "rtl" : "ltr"}
         className="max-w-[420px]"
         icon={<FileText className="h-4 w-4" />}
         title={query}
-        subtitle="Researching…"
+        subtitle={ar ? "جاري البحث…" : "Researching…"}
       >
-        <ol className="space-y-2 text-left">
+        <ol className={`space-y-2 ${ar ? "text-right" : "text-left"}`}>
           {RESEARCH_STEPS.map((step, index) => {
             const isDone = activeIndex >= 0 && index < activeIndex;
             const isActive = index === activeIndex;
@@ -104,7 +107,7 @@ const DeepResearchCard = ({
                         : "text-muted-foreground"
                   }
                 >
-                  {step.label}
+                  {ar ? step.labelAr : step.label}
                 </span>
               </li>
             );
@@ -116,13 +119,13 @@ const DeepResearchCard = ({
 
   return (
     <ToolCard
-      dir={"ltr"}
+      dir={ar ? "rtl" : "ltr"}
       className="max-w-[420px]"
       icon={<FileText className="h-4 w-4" />}
       title={query}
-      subtitle={isEmpty ? "No report content" : undefined}
+      subtitle={isEmpty ? (ar ? "لا يوجد محتوى" : "No report content") : undefined}
     >
-      <div className={"text-left"}>
+      <div className={ar ? "text-right" : "text-left"}>
         <button
           type="button"
           onClick={openPreview}
@@ -130,7 +133,7 @@ const DeepResearchCard = ({
           className="inline-flex items-center gap-1.5 justify-center px-5 h-9 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Open
+          {ar ? "افتح التقرير" : "Open"}
         </button>
       </div>
     </ToolCard>

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resumeJob, failStaleJob } from "@/lib/jobs/client";
-import { findSlidesTemplate } from "@/lib/slidesTemplates";
+import { findSlidesTemplate, slidesTemplatePalette } from "@/lib/slidesTemplates";
 import type { SlideDeck } from "@/components/chat/SlidesDeckCard";
 import { SLIDES_CLIENT_TIMEOUT_MS, SLIDES_TIMEOUT_MESSAGE } from "../chatUtils";
 import type { Message } from "../chatConstants";
@@ -108,14 +108,12 @@ export async function resumeSlidesJobs({
           }
           if (!out?.deck) return;
           const tpl = findSlidesTemplate(out.deck.templateId || meta.templateId);
-          const enrichedDeck: SlideDeck & { htmlSlug?: string; variant?: string } = tpl.htmlSlug
-            ? {
-                ...out.deck,
-                templateId: tpl.id,
-                htmlSlug: tpl.htmlSlug,
-                variant: tpl.variant,
-              }
-            : out.deck;
+          const enrichedDeck: SlideDeck & { htmlSlug?: string; variant?: string } = {
+            ...out.deck,
+            templateId: tpl.id,
+            palette: slidesTemplatePalette(tpl.id),
+            ...(tpl.htmlSlug ? { htmlSlug: tpl.htmlSlug, variant: tpl.variant } : {}),
+          };
           setMessages((prev) =>
             prev.map((x) =>
               x.id === messageId

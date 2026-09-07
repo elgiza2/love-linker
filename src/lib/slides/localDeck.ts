@@ -6,13 +6,11 @@
  */
 import type { SlideDeck, SlideData } from "@/components/chat/SlidesDeckCard";
 import { parseSlidesOutline } from "@/lib/slidesOutlineParser";
-import { findSlidesTemplate } from "@/lib/slidesTemplates";
+import { findSlidesTemplate, slidesTemplatePalette } from "@/lib/slidesTemplates";
 import { generateSlidesOutline } from "./generateOutline";
 
 function paletteFor(templateId?: string): SlideDeck["palette"] {
-  const tpl = findSlidesTemplate(templateId);
-  const [primary, accent] = tpl.colors || ["#6366f1", "#22d3ee"];
-  return { primary, accent, bg: "#0b0b0f", fg: "#ffffff" };
+  return slidesTemplatePalette(templateId);
 }
 
 /** Turns "Slide N: title / - bullets" steps into renderable slides. */
