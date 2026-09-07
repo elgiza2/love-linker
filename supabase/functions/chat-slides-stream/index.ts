@@ -128,18 +128,27 @@ async function buildDeck(
     templateColors?: [string, string];
   },
 ): Promise<SlideDeck> {
-  const raw = await completion(
-    db,
-    deckSystemPrompt(args.numberOfSlides, args.language),
-    `Build the deck for this brief:\n\n${args.topic}`,
-    4000,
-  );
+  // Token budget scales with the deck size; a fixed 4k truncated longer decks
+  // mid-JSON, which used to collapse the whole deck onto the 3-slide fallback.
+  const tokenBudget = Math.min(16_000, Math.max(4_000, args.numberOfSlides * 900));
   let parsed: any = {};
-  try {
-    parsed = extractJson(raw);
-  } catch (error) {
-    console.error("chat-slides-stream: failed to parse deck JSON", error);
-    parsed = {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw = await completion(
+      db,
+      deckSystemPrompt(args.numberOfSlides, args.language),
+      `Build the deck for this brief:\n\n${args.topic}`,
+      tokenBudget,
+    );
+    try {
+      const candidate = extractJson(raw);
+      if (Array.isArray(candidate?.slides) && candidate.slides.length) {
+        parsed = candidate;
+        break;
+      }
+      parsed = candidate ?? {};
+    } catch (error) {
+      console.error("chat-slides-stream: failed to parse deck JSON", error);
+    }
   }
   const colors = args.templateColors && args.templateColors.length === 2
     ? args.templateColors
