@@ -17,6 +17,7 @@
  *      client follows via Realtime (see `subscribeJob`).
  */
 import { callModel, hasModelProvider, MODELS } from "../_shared/abliteration.ts";
+import { hasCerebras } from "../_shared/cerebras.ts";
 import {
   admin,
   background,
@@ -29,23 +30,31 @@ import {
   updateJob,
 } from "../_shared/jobs.ts";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** One deck-writing completion. Providers rate-limit hard, so retry with backoff
+ *  instead of failing the whole job on a single 429. */
 async function completion(db: ReturnType<typeof admin>, system: string, user: string, maxTokens = 2000) {
-  const result = await callModel(db, [MODELS.standard, MODELS.fast], {
-    agentRole: "manager",
-    model: MODELS.standard,
-    stream: false,
-    temperature: 0.7,
-    max_tokens: maxTokens,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-  });
-  if (!result?.response?.ok) throw new Error("model_unavailable");
-  const data = await result.response.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string" || !text.trim()) throw new Error("empty_completion");
-  return text.trim();
+  let lastError = "model_unavailable";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await sleep(1500 * attempt);
+    const result = await callModel(db, [MODELS.standard, MODELS.fast], {
+      agentRole: "manager",
+      stream: false,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    });
+    if (!result?.response?.ok) continue;
+    const data = await result.response.json().catch(() => null);
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text === "string" && text.trim()) return text.trim();
+    lastError = "empty_completion";
+  }
+  throw new Error(lastError);
 }
 
 function extractJson(text: string): any {
@@ -119,18 +128,27 @@ async function buildDeck(
     templateColors?: [string, string];
   },
 ): Promise<SlideDeck> {
-  const raw = await completion(
-    db,
-    deckSystemPrompt(args.numberOfSlides, args.language),
-    `Build the deck for this brief:\n\n${args.topic}`,
-    4000,
-  );
+  // Token budget scales with the deck size; a fixed 4k truncated longer decks
+  // mid-JSON, which used to collapse the whole deck onto the 3-slide fallback.
+  const tokenBudget = Math.min(16_000, Math.max(4_000, args.numberOfSlides * 900));
   let parsed: any = {};
-  try {
-    parsed = extractJson(raw);
-  } catch (error) {
-    console.error("chat-slides-stream: failed to parse deck JSON", error);
-    parsed = {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw = await completion(
+      db,
+      deckSystemPrompt(args.numberOfSlides, args.language),
+      `Build the deck for this brief:\n\n${args.topic}`,
+      tokenBudget,
+    );
+    try {
+      const candidate = extractJson(raw);
+      if (Array.isArray(candidate?.slides) && candidate.slides.length) {
+        parsed = candidate;
+        break;
+      }
+      parsed = candidate ?? {};
+    } catch (error) {
+      console.error("chat-slides-stream: failed to parse deck JSON", error);
+    }
   }
   const colors = args.templateColors && args.templateColors.length === 2
     ? args.templateColors
@@ -217,7 +235,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!hasModelProvider()) return json({ error: "auth_required", message: "Model provider not configured" }, 503);
+  // Cerebras is the primary provider; abliteration.ai is only the fallback, so
+  // either one being configured is enough to build a deck.
+  if (!hasCerebras() && !hasModelProvider()) {
+    return json({ error: "auth_required", message: "Model provider not configured" }, 503);
+  }
 
   const user = await getCallerUser(db, req);
   if (!user) return json({ error: "auth_required", message: "Please sign in to continue." }, 401);

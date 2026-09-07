@@ -17,6 +17,13 @@ const EDGE_FUNCTION_NAMES: Record<string, string> = {
 };
 
 /**
+ * Endpoints that ALWAYS go to the deployed edge function, dev included: their
+ * model/search provider keys live only in Supabase function secrets, so the
+ * local `/api/*` handler would fail with a "not configured" error.
+ */
+const ALWAYS_EDGE = new Set(["deep-research"]);
+
+/**
  * POSTs JSON to `/api/<name>` in dev, or to the deployed edge function of the
  * same feature in production/preview. Always attaches the caller's access
  * token (edge functions require it; the dev route ignores the extra header
@@ -26,7 +33,7 @@ export async function callServerEndpoint(name: keyof typeof EDGE_FUNCTION_NAMES 
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && !ALWAYS_EDGE.has(String(name))) {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`/api/${name}`, {

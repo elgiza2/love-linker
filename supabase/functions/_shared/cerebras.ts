@@ -111,24 +111,32 @@ export async function callCerebras(
     : [cerebrasModelFor(null, role)];
   const ladder = Array.from(new Set([...preferred, ...CEREBRAS_LADDER]));
 
-  for (const model of ladder) {
-    const body = cerebrasPayload({ ...payload, model });
-    try {
-      const response = await fetch(`${BASE}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({ ...body, model }),
-      });
-      if (response.ok) return { response, model };
-      const detail = (await response.text().catch(() => "")).slice(0, 400);
-      console.error(`cerebras ${model} [${response.status}]: ${detail}`);
-      if ([401, 402, 403].includes(response.status)) return null;
-    } catch (error) {
-      console.error("cerebras request failed", error);
+  // Two passes over the ladder: this provider rate-limits in short bursts, so a
+  // single 429 must not push every caller onto the fallback provider.
+  for (let pass = 0; pass < 2; pass++) {
+    let sawRateLimit = false;
+    for (const model of ladder) {
+      const body = cerebrasPayload({ ...payload, model });
+      try {
+        const response = await fetch(`${BASE}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify({ ...body, model }),
+        });
+        if (response.ok) return { response, model };
+        const detail = (await response.text().catch(() => "")).slice(0, 400);
+        console.error(`cerebras ${model} [${response.status}]: ${detail}`);
+        if ([401, 402, 403].includes(response.status)) return null;
+        if (response.status === 429) sawRateLimit = true;
+      } catch (error) {
+        console.error("cerebras request failed", error);
+      }
     }
+    if (!sawRateLimit) break;
+    await new Promise((resolve) => setTimeout(resolve, 1200));
   }
   return null;
 }
