@@ -38,88 +38,12 @@ export const LegacyAiRedirect = () => {
 };
 
 
-const SkeletonBar = ({ className = "" }: { className?: string }) => (
-  <div className={`ng-shimmer rounded-md bg-foreground/10 ${className}`} aria-hidden="true" />
-);
-
 /**
- * Route-level loading state. Instead of a centred spinner on an empty page
- * (which reads as "frozen" for multi-second chunk loads), we paint the real
- * chat shell as a skeleton: sidebar rail, message column and composer. The
- * layout therefore never shifts once the actual page mounts.
+ * Route-level loading state. Renders nothing: while a page chunk loads the
+ * previous screen stays painted, so no skeleton/placeholder ever flashes.
  */
-export const LazyFallback = () => {
-  const location = useLocation();
-  const isChatRoute =
-    location.pathname === "/" ||
-    location.pathname === "/chat" ||
-    location.pathname === "/index" ||
-    location.pathname === "/showcase";
+export const LazyFallback = () => null;
 
-  if (!isChatRoute) {
-    return (
-      <div
-        className="min-h-dvh bg-background text-foreground flex flex-col gap-4 p-6"
-        role="status"
-        aria-busy="true"
-      >
-        <span className="sr-only">Loading</span>
-        <SkeletonBar className="h-8 w-48" />
-        <SkeletonBar className="h-4 w-72" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonBar key={i} className="h-32 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="min-h-dvh bg-background text-foreground flex overflow-hidden"
-      role="status"
-      aria-busy="true"
-    >
-      <span className="sr-only">Preparing your workspace</span>
-
-      {/* Sidebar rail */}
-      <div className="hidden md:flex w-[260px] shrink-0 flex-col gap-3 border-e border-border p-4">
-        <SkeletonBar className="h-9 w-full" />
-        <SkeletonBar className="h-4 w-24 mt-2" />
-        {Array.from({ length: 7 }).map((_, i) => (
-          <SkeletonBar key={i} className="h-7 w-full" />
-        ))}
-      </div>
-
-      {/* Conversation column */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <SkeletonBar className="h-8 w-8 rounded-full md:hidden" />
-          <SkeletonBar className="h-6 w-40" />
-          <SkeletonBar className="h-8 w-8 rounded-full" />
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
-          <SkeletonBar className="h-10 w-10 rounded-full" />
-          <SkeletonBar className="h-6 w-56" />
-          <SkeletonBar className="h-4 w-40" />
-        </div>
-
-        <div className="px-3 pb-5 pt-2">
-          <div className="mx-auto w-full max-w-3xl space-y-2">
-            <SkeletonBar className="h-[52px] w-full rounded-2xl" />
-            <div className="flex gap-2 overflow-hidden">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <SkeletonBar key={i} className="h-8 w-20 rounded-full shrink-0" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 
 
