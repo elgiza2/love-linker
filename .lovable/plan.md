@@ -1,53 +1,64 @@
-# خطة: Suna/Kortix كوكيل أساسي + browser-use/Skyvern كأداة متصفح داخلية
+# خطة: استبدال محرك الوكيل بـ Kortix المستضاف + Browser Use Cloud
 
-## الهدف
-استبدال محرك الوكيل الحالي بالكامل بـ **Suna/Kortix** (مستضاف على سيرفر خاص)، وربطه بالتطبيق عبر REST API، مع أداة متصفح داخلية (**browser-use** أولًا، و**Skyvern** اختياريًا) يستدعيها الوكيل الأساسي عند الحاجة للتحكم في المتصفح (تسجيل دخول، فورمات، خطوات معقدة).
+## لماذا هذا الاتجاه
+المستخدم لا يستطيع استئجار VPS. لذلك بدل self-hosting لـ Suna/Kortix، نستخدم **المنصة المستضافة من Kortix** (`https://api.kortix.com/v1`) عبر REST API و`@kortix/sdk`. وبدل تجهيز سيرفر لـ browser-use/Skyvern، نستخدم **Browser Use Cloud** (`https://cloud.browser-use.com`) كأداة متصفح مستضافة. Skyvern يُرجأ لاحقًا بسبب ترخيص AGPL وحاجته لاستضافة.
 
 ## ما سيتغير للمستخدم
-- تبويب الوكيل يعرض تشغيلًا حقيقيًا: خطوات، أدوات، ملفات ناتجة، إمكانية الإيقاف والمتابعة بعد إغلاق التاب.
-- المهام الطويلة والمجدولة تكمل على السيرفر.
-- التصميم الحالي كما هو؛ التغيير في المحرك وطبقة الربط فقط.
+- تبويب الوكيل يشغل مهام حقيقية: خطوات، أدوات، ملفات ناتجة، إيقاف ومتابعة بعد إغلاق التاب.
+- المهام الطويلة تكمل على سيرفر Kortix، والتطبيق يراقب حالتها عبر الـ API + الجداول المحلية.
+- المتصفح يُستخدم كأداة داخلية عندما يحتاج الوكيل Kortix إلى فورمات أو تسجيل دخول أو مواقع معقدة.
+- التصميم الحالي كما هو؛ التغيير في المحرك والربط فقط.
+
+## المتطلبات من المستخدم قبل البدء
+1. **حساب Kortix** على `https://kortix.com` مع API key من `settings/api-keys`. الخطة المجانية تبدأ بـ 200 credit/shard. ([1](https://kortix.com/pricing))
+2. **حساب Browser Use Cloud** على `https://cloud.browser-use.com` مع API key يبدأ بـ `bu_`. ([2](https://docs.browser-use.com/cloud/llms.txt))
+3. مفاتيح النماذج (Bring Your Own Key) داخل Kortix إذا لم يرغب في استخدام الـ managed models المدفوعة.
 
 ## المراحل
 
-### 1) الاستضافة والترخيص (خارج الكود — مطلوب منك)
-- سيرفر VPS (‏4 vCPU / 8–16GB) + دومين فرعي مثل `agent.megsyai.com` + TLS.
-- Docker Compose لـ Suna/Kortix + Supabase الخاص به (أو ربطه بنفس مشروع Supabase).
-- مزوّد sandbox لتنفيذ الكود (Daytona أو E2B) — مفتاح API.
-- قراءة ترخيص Kortix قبل الاستخدام التجاري.
-- **قرار قانوني:** Skyvern (AGPL) يُشغَّل كخدمة منفصلة عبر شبكة فقط، ولا يُدمج كود منه في التطبيق. إن أردت تجنّب أي حساسية نبدأ بـ browser-use (MIT) فقط.
+### 1) توحيد قاعدة البيانات
+حذف/تجاهل الجداول المتفرقة الحالية (`long_runs`, `operator_runs`, `computer_tasks`, `dev_runs`) واستبدالها بأربعة جداول موحّدة:
+- `agent_runs` — المستخدم، الحالة، المهمة، معرّف Kortix، التوقيتات، metadata.
+- `agent_steps` — رقم الخطوة، النص/الملخص، الحالة.
+- `agent_tool_calls` — اسم الأداة، المدخلات، النتيجة المختصرة، الخطوة المرتبطة.
+- `agent_artifacts` — الملفات الناتجة + مسار Supabase Storage.
 
-### 2) طبقة الربط في التطبيق (Edge Functions)
-- دالة `agent-run` واحدة كبوابة: تتحقق من هوية المستخدم والحصص، تنشئ التشغيل، تنادي Suna API، تُخزّن المعرّفات.
-- دالة `agent-stream` لتمرير الأحداث (SSE) من Suna للواجهة.
-- دوال `agent-stop` و`agent-answer` (للأسئلة التوضيحية أثناء التشغيل).
-- الأسرار: `SUNA_API_URL`, `SUNA_API_KEY`, (و`SANDBOX_API_KEY` عند الحاجة).
+RLS: كل مستخدم يرى تشغيلاته فقط. GRANTs مطلوبة لـ `authenticated` و`service_role`.
 
-### 3) قاعدة البيانات (توحيد)
-جداول موحّدة بدل الجداول المتفرقة الحالية:
-- `agent_runs` (المستخدم، الحالة، المهمة، معرّف Suna، التوقيتات)
-- `agent_steps` (الخطوة، الحالة، النص)
-- `agent_tool_calls` (الأداة، المدخلات، النتيجة المختصرة)
-- `agent_artifacts` (الملفات الناتجة + مسار Storage)
-مع RLS: كل مستخدم يرى تشغيلاته فقط، وGRANTs الصحيحة، وservice_role للدوال.
+### 2) بوابة Edge Functions
+إنشاء دالة واحدة `agent-gateway` تتولى:
+- التحقق من الجلسة والحصص.
+- إنشاء التشغيل في `agent_runs`.
+- استدعاء Kortix API (`POST /agent/start` أو ما يعادله في `@kortix/sdk`) ([3](https://kortix-ai-suna.mintlify.app/api/agents/run)).
+- تخزين معرّف Kortix والرد المختصر.
 
-### 4) الأدوات الداخلية (خدمات منفصلة يستدعيها الوكيل)
-- **browser-use** كخدمة HTTP: `POST /browser/task` → خطوات + لقطات + نتيجة.
-- **Skyvern** (اختياري) للحالات المعقّدة/الفورمات الصعبة.
-- تُسجَّل كأدوات داخل Suna (custom tools / MCP) حتى يقرر الوكيل الأساسي وحده متى يستخدمها.
+دوال إضافية:
+- `agent-stream` — تمرير أحداث Kortix SSE إلى الواجهة.
+- `agent-stop` — إيقاف تشغيل.
+- `agent-answer` — الإجابة على أسئلة توضيحية أثناء التشغيل.
 
-### 5) تحويل الواجهة
-- Hook واحد `useAgentRun` يقرأ من الجداول الجديدة + SSE.
+الأسرار المطلوبة: `KORTIX_API_KEY`، `KORTIX_API_URL` (افتراضي `https://api.kortix.com/v1`)، `BROWSER_USE_API_KEY`.
+
+### 3) أداة المتصفح المستضافة
+بدل Skyvern، نبني أداة `browser-use-cloud`:
+- Edge Function تستقبل هدفًا وصفحة/فورم، وتستدعي Browser Use Cloud Agent API.
+- تُرجع نتيجة النص + لقطات الشاشة أو روابطها.
+- تُسجَّل كأداة داخل Kortix (custom tool / MCP) بحيث يقرر الوكيل الأساسي وحده متى يستدعيها.
+- في البداية يمكن أن تكون أداة منفصلة يستدعيها التطبيق عندما يكتشف أن المهمة تحتاج متصفحًا، إلى حين دمجها داخل Kortix.
+
+### 4) تحويل الواجهة
+- استبدال `useLongRun` وكل محركاته بـ `useAgentRun` واحد.
+- `useAgentRun` يقرأ من `agent_runs` + `agent_steps` + `agent_artifacts`، ويستمع إلى SSE من `agent-stream`.
 - ربط تبويب الوكيل والشات به، وعرض الأدوات والملفات الناتجة.
 
-### 6) إزالة المحركات القديمة
-حذف/تعطيل: `src/lib/manusLoop.ts`، `src/lib/agentkernel/*`، `supabase/functions/_shared/agentkernel/*`، `operator-orchestrator`، والجداول القديمة (`long_runs`, `operator_runs`, `computer_tasks`, `dev_runs`) بعد التأكد من عمل الجديد.
+### 5) إزالة المحركات القديمة
+تعطيل/حذف: `src/lib/manusLoop.ts`، `src/lib/agentkernel/*`، `supabase/functions/_shared/agentkernel/*`، `operator-orchestrator`، `long-run` edge function، `computer-agent` edge function، `agent-tick`.
 
-### 7) اختبار حقيقي
+### 6) اختبار حقيقي
 - مهمة بحث + تقرير ملف.
-- مهمة كود تُنفَّذ في sandbox.
-- مهمة متصفح تتطلب تسجيل دخول وفورم.
+- مهمة تتطلب فورم أو تسجيل دخول عبر المتصفح.
 - مهمة طويلة: إغلاق التاب ثم العودة والتشغيل مستمر.
+- التأكد من أن Kortix يستمر في التشغيل حتى لو فصل الواجهة.
 
 ## من أين نبدأ الآن
-بدون سيرفر Suna لا يعمل شيء حقيقي. لذلك أقترح تنفيذ **المراحل 2 و3 و5** الآن (البوابة + الجداول + الواجهة) على أن تعمل مباشرة لحظة إدخال `SUNA_API_URL` و`SUNA_API_KEY`، ثم نضيف خدمة المتصفح.
+نبدأ بـ **المراحل 1 و2 و4** (الجداول + البوابة + الواجهة). بعد تجهيزها، التطبيق يصبح جاهزًا لحظة إدخال `KORTIX_API_KEY` و`BROWSER_USE_API_KEY`. Browser Use Cloud يُضاف بعد أن يثبت Kortix الأساسي.
