@@ -523,7 +523,6 @@ const AnimatedInput = ({
 
         </motion.div>
       </div>
-      )}
 
     </div>
   );
