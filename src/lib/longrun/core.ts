@@ -188,9 +188,12 @@ async function syncRun(supabase: SupabaseClient, run: Record<string, any>) {
           run_id: run.id,
           type: "thought",
           // Real reasoning only — a bare step counter tells the user nothing.
-          title: s.nextGoal || s.evaluationPreviousGoal || s.url || "Working",
+          title:
+            s.nextGoal || s.evaluationPreviousGoal || s.memory || s.url || "Working",
 
-          detail: [s.evaluationPreviousGoal, s.url].filter(Boolean).join(" · ") || null,
+          detail:
+            [s.memory, s.evaluationPreviousGoal, s.url].filter(Boolean).join(" · ") ||
+            null,
         })),
       );
     }

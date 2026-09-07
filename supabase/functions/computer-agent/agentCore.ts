@@ -335,20 +335,35 @@ function extractProgress(data: any): {
   console.log(
     `browser-use payload keys=${Object.keys(data ?? {}).join(",")} steps=${rawEvents.length}`,
   );
+  // Only real reasoning/goal text becomes a visible line. A bare step counter
+  // says nothing to the reader, so an event without wording is dropped.
   const events = rawEvents
-    .map((e) => ({
-      title: String(
-        e?.nextGoal || e?.next_goal || e?.evaluationPreviousGoal || e?.evaluation_previous_goal ||
-          e?.goal || e?.thought || `Step ${e?.number ?? e?.step ?? ""}`,
-      ).slice(0, 160),
-      detail:
-        typeof e?.memory === "string"
-          ? e.memory.slice(0, 800)
-          : Array.isArray(e?.actions)
-            ? e.actions.map((a: unknown) => (typeof a === "string" ? a : JSON.stringify(a))).join(", ").slice(0, 800)
-            : undefined,
-      url: typeof e?.url === "string" ? e.url : undefined,
-    }))
+    .map((e) => {
+      const title = String(
+        e?.nextGoal || e?.next_goal || e?.thought || e?.thinking || e?.goal ||
+          e?.evaluationPreviousGoal || e?.evaluation_previous_goal || e?.memory || "",
+      )
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 200);
+      const detail = [
+        typeof e?.memory === "string" && e.memory !== title ? e.memory : "",
+        Array.isArray(e?.actions)
+          ? e.actions
+              .map((a: unknown) => (typeof a === "string" ? a : JSON.stringify(a)))
+              .join(", ")
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+        .slice(0, 800);
+      return {
+        title,
+        detail: detail || undefined,
+        url: typeof e?.url === "string" ? e.url : undefined,
+      };
+    })
+    .filter((e) => !!e.title)
     .slice(-50);
 
 

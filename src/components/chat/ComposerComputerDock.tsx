@@ -79,10 +79,10 @@ export function ComposerComputerDock({ className = "" }: { className?: string })
           onClick={toggle}
           aria-expanded={open}
           aria-label={isAr ? "تكبير كومبيوتر ميغسي" : "Expand Megsy Computer"}
-          className="group inline-flex h-10 w-auto items-center gap-2 rounded-xl border border-border bg-card px-2.5 text-start transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97]"
+          className="group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-border/60 bg-card px-2.5 text-start transition-[background-color] duration-150 hover:bg-muted"
         >
           {/* Tiny square peek of the live screen, same height as the chip. */}
-          <span className="relative block h-6 w-6 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
+          <span className="relative block h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted">
             {view.url ? (
               <iframe
                 src={view.url}
@@ -91,7 +91,7 @@ export function ComposerComputerDock({ className = "" }: { className?: string })
                 tabIndex={-1}
                 scrolling="no"
                 className="pointer-events-none absolute left-0 top-0 h-[360px] w-[540px] origin-top-left border-0"
-                style={{ transform: "scale(0.0445)" }}
+                style={{ transform: "scale(0.052)" }}
                 sandbox="allow-scripts allow-same-origin"
               />
             ) : view.poster ? (
@@ -104,8 +104,14 @@ export function ComposerComputerDock({ className = "" }: { className?: string })
               <span className="absolute inset-0 animate-pulse bg-muted-foreground/20" />
             )}
           </span>
-          <span className="truncate text-[13px] font-medium text-foreground">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
             {title}
+          </span>
+          {view.active ? (
+            <span className="me-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary motion-safe:animate-pulse" aria-hidden />
+          ) : null}
+          <span className="text-[11px] text-muted-foreground">
+            {isAr ? "فتح" : "Open"}
           </span>
         </button>
       )}
