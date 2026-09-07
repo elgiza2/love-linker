@@ -4,6 +4,10 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/api/deep-research",
+      "destination": "/api/chat?route=deep-research"
+    },
+    {
       "source": "/api/dev-admin",
       "destination": "/api/manus-admin?provider=freestyle"
     },
